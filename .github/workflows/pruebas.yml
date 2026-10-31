@@ -1,0 +1,17 @@
+name: Pruebas
+on: [push, workflow_dispatch]
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 22 }
+      - run: npm ci
+      - run: npm test
+      - name: Construir la imagen Docker
+        run: docker build -t juegos-servidor:prueba .
+      - name: Arrancar la imagen y comprobar /salud
+        run: |
+          docker run -d --name prueba -p 127.0.0.1:8090:8090 juegos-servidor:prueba
+          for i in $(seq 1 20); do curl -fs http://127.0.0.1:8090/salud && exit 0; sleep 1; done; docker logs prueba; exit 1
