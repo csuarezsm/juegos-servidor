@@ -1,0 +1,24 @@
+# Servidor de juegos en el VPS de IT Canarias (212.227.40.8).
+# Se une a la red «proxy-interno», la misma que usa nginx-sat para llegar a las demás apps,
+# y solo publica el puerto en 127.0.0.1 (para comprobar /salud desde el propio VPS).
+services:
+  juegos:
+    build: ..
+    image: juegos-servidor:latest
+    container_name: juegos-servidor
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8090:8090"
+    environment:
+      - PORT=8090
+      - NODE_OPTIONS=--max-old-space-size=96
+    networks: [proxy-interno]
+    mem_limit: 128m
+    cpus: 0.5
+    pids_limit: 64
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "3" }
+networks:
+  proxy-interno:
+    external: true

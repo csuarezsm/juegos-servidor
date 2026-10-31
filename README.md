@@ -13,6 +13,7 @@ Un solo servicio para jugar en línea a las apps de IT Canarias (Ajedrez; despu�
 - **Reloj en el servidor**: decide él cuándo se acaba el tiempo.
 - **Nada en disco**: las salas viven en memoria. Una sala sin nadie conectado se borra a los 10 minutos; una sin actividad, a las 6 horas.
 - **Protección**: mensajes de 4 KB como máximo, unos 6 mensajes por segundo por conexión y 30 salas por hora por IP.
+- **Consumo**: unos 40-60 MB de memoria y casi nada de CPU en reposo. Límites del contenedor: 128 MB de memoria, medio núcleo y 64 procesos; Node limitado a 96 MB de memoria. Cada sala ocupa unos pocos KB, medido: 300 salas llenas (600 jugadores) = 76 MB. El máximo es de 800 salas a la vez (unos 110 MB), dentro del límite. Si se llena, la app avisa de que lo intenten en un rato.
 - **Privacidad**: solo pasan por el servidor el nombre que pone el jugador y sus jugadas. No se guardan.
 
 ## Añadir un juego
@@ -39,7 +40,16 @@ App → servidor: `crear {juego, nombre, opciones}` · `unirse {codigo, nombre, 
 
 Servidor → app: `hola {protocolo, juegos}` · `sala {codigo, asiento, token}` · `estado {codigo, asiento, jugadores, turno, estado, revancha}` · `error {codigo, msg}` · `pong`.
 
-## Instalar en el VPS
+## Instalar en el VPS de IT Canarias (212.227.40.8)
+
+```bash
+cd /opt && git clone https://github.com/csuarezsm/juegos-servidor.git && cd juegos-servidor
+bash despliegue/instalar-vps.sh
+```
+
+El script comprueba la capacidad del VPS (memoria, disco y carga), arranca el contenedor en la red `proxy-interno`, añade `juegos.itcanarias.com` a `nginx-sat` (con copia de seguridad y vuelta atrás si `nginx -t` falla), saca el certificado con certbot y comprueba `https://juegos.itcanarias.com/salud`. Para actualizar: `git pull && bash despliegue/instalar-vps.sh`.
+
+## Instalar en otro servidor
 
 Requisitos: Docker con `docker compose`, y un registro DNS `juegos.itcanarias.com` (tipo A) apuntando a la IP del VPS.
 

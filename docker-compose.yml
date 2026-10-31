@@ -11,8 +11,10 @@ services:
       - "127.0.0.1:8090:8090"
     environment:
       - PORT=8090
-    mem_limit: 256m
+      - NODE_OPTIONS=--max-old-space-size=96
+    mem_limit: 128m
     cpus: 0.5
+    pids_limit: 64
     logging:
       driver: json-file
       options: { max-size: "5m", max-file: "3" }

@@ -17,7 +17,7 @@ const JUEGOS = {
 };
 
 const PORT = +process.env.PORT || 8090;
-const MAX_SALAS = +process.env.MAX_SALAS || 2000;
+const MAX_SALAS = +process.env.MAX_SALAS || 800;     // ~110 MB con todas llenas (medido: 300 salas = 76 MB)
 const SALAS_POR_IP_HORA = +process.env.SALAS_POR_IP_HORA || 30;
 const VACIA_MS = 10 * 60e3;          // sala sin nadie conectado: se borra a los 10 min
 const INACTIVA_MS = 6 * 3600e3;      // sala sin actividad: se borra a las 6 h
