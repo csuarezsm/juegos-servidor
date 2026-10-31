@@ -11,7 +11,8 @@ const path = require('path');
 const JUEGOS = {
   chinchon: require('./juegos/chinchon'),
   ajedrez: require('./juegos/ajedrez'),
-  // pumba: require('./juegos/pumba'),   ← cada juego nuevo, un módulo con la misma interfaz
+  pumba: require('./juegos/pumba'),
+  // ← cada juego nuevo, un módulo con la misma interfaz
 };
 
 const ALFABETO = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';     // sin 0/O ni 1/I
@@ -77,7 +78,8 @@ function programar(s) {
   const turno = J.turnoDe(g);
   if (turno) {
     const a = s.asientos.find(x => x.id === turno);
-    if (a.bot) { s.timer = setTimeout(seguro(s, () => { J.pasoAuto(g); difundir(s); }), PASO_BOT_MS); return; }
+    // pausaBot (opcional): tiempo extra antes de que juegue la máquina (Pumba: dejar reclamar un «¡Pumba!» olvidado)
+    if (a.bot) { s.timer = setTimeout(seguro(s, () => { J.pasoAuto(g); difundir(s); }), PASO_BOT_MS + (J.pausaBot ? J.pausaBot(g) : 0)); return; }
     if (!conectado(a.token)) {
       const falta = Math.max(0, (a.desconectadoEn || Date.now()) + AUSENTE_MS - Date.now());
       s.timer = setTimeout(seguro(s, () => { if (!conectado(a.token) && J.turnoDe(g) === turno) { J.pasoAuto(g); difundir(s); } else programar(s); }), falta + 50);

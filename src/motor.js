@@ -26,7 +26,12 @@ const chinchon = cargar(['chinchon/marcador.js', 'chinchon/juego.js'], [
   'usePlayRules', 'theCard', 'card', 'isChinchon'
 ]);
 
+const pumba = cargar(['pumba/marcador.js', 'pumba/juego.js'], [
+  'compute', 'dealHand', 'playCard', 'drawTurn', 'claimPumba', 'closeHand', 'botChoose', 'botStep', 'botRebuys',
+  'canPlay', 'playable', 'handPoints', 'canRebuy', 'rebuyScore', 'pname', 'DEF_CFG', 'newPlay', 'usePlayRules'
+]);
+
 // Ajedrez: su archivo de reglas no depende de nada y se carga tal cual
 const ajedrez = require(path.join(MOTORES, 'ajedrez', 'ajedrez.js'));
 
-module.exports = { chinchon, ajedrez };
+module.exports = { chinchon, ajedrez, pumba };

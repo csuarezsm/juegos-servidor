@@ -1,6 +1,6 @@
 # Servidor de juegos en línea · IT Canarias
 
-Un solo servidor para jugar en línea a todas las apps de juegos de IT Canarias: hoy **Chinchón** y **Ajedrez**; después **Pumba** y las que vengan.
+Un solo servidor para jugar en línea a todas las apps de juegos de IT Canarias: hoy **Chinchón**, **Ajedrez** y **Pumba**, y las que vengan.
 Dirección: `wss://juegos.itcanarias.com/ws` · Comprobación: `https://juegos.itcanarias.com/salud`
 
 © 2026 IT Canarias. Todos los derechos reservados.
@@ -25,8 +25,9 @@ Guía para conectar cada app: documento «Servidor de juegos en línea — guía
 |---|---|---|---|---|
 | Chinchón | `chinchon` | 2–4 (+ máquina) | `src/juegos/chinchon.js` | `motores/chinchon/marcador.js`, `juego.js` |
 | Ajedrez | `ajedrez` | 2 | `src/juegos/ajedrez.js` | `motores/ajedrez/ajedrez.js` |
+| Pumba | `pumba` | 2–6 (+ máquina) | `src/juegos/pumba.js` | `motores/pumba/marcador.js`, `juego.js` |
 
-Para añadir un juego: un módulo en `src/juegos/` con `id`, `min`, `max`, `opciones`, `iniciar`, `turnoDe`, `jugada`, `pasoAuto`, `esperaListos`, `siguienteMano`, `vista`, `terminada` (y, si tiene reloj, `reloj` y `alVencer`; si no admite máquina, `sinMaquina`), sus archivos de reglas en `motores/<juego>/`, y registrarlo en `JUEGOS` de `src/salas.js`. **Si cambian las reglas en una app, se vuelven a copiar aquí.**
+Para añadir un juego: un módulo en `src/juegos/` con `id`, `min`, `max`, `opciones`, `iniciar`, `turnoDe`, `jugada`, `pasoAuto`, `esperaListos`, `siguienteMano`, `vista`, `terminada` (y, si tiene reloj, `reloj` y `alVencer`; si no admite máquina, `sinMaquina`; si la máquina debe esperar antes de jugar, `pausaBot`), sus archivos de reglas en `motores/<juego>/`, y registrarlo en `JUEGOS` de `src/salas.js`. **Si cambian las reglas en una app, se vuelven a copiar aquí.**
 
 ## Protocolo (JSON por WebSocket en `/ws`)
 
@@ -40,10 +41,11 @@ Para añadir un juego: un módulo en `src/juegos/` con `id`, `min`, `max`, `opci
 | `{t:'salir'}` | Dejar la sala |
 | `{t:'ping'}` | Mantener viva la conexión (cada 25 s) |
 
-El servidor responde con `{t:'hola', version}`, `{t:'sala', sala}` (la sala tal como la ve ese jugador, cada vez que cambia; `null` = fuera de la sala), `{t:'error', msg}` y `{t:'pong'}`.
+El servidor responde con `{t:'hola', version, juegos}`, `{t:'sala', sala}` (la sala tal como la ve ese jugador, cada vez que cambia; `null` = fuera de la sala), `{t:'error', msg}` y `{t:'pong'}`.
 
 Acciones por juego:
 - **Chinchón**: `robar` (`de: 'mazo'|'descarte'`), `tirar` (`carta`, `cerrar`), `listo`, `reenganche`.
+- **Pumba**: `echar` (`carta`, `palo` si es sota, `pumba: true` si dice «¡Pumba!» al echar la penúltima), `robar` (una carta, o el castigo de los doses), `reclamar` (fuera de turno: a quien olvidó decir «¡Pumba!», hasta que el siguiente eche o robe), `listo`, `reenganche`. Opciones al crear: `limite` (50–500), `reenganches` (0–3), `figuras` (`cara` o `diez`), `sotaLibre`, `cierreCastigo`, `nivel`. Si alguien olvida el «¡Pumba!», la máquina espera 2,5 s antes de jugar para dejar reclamar.
 - **Ajedrez**: `mover` (`uci`, p. ej. `e7e8q`), `tablas` (ofrecer o aceptar), `rechazar`, `rendirse`, `revancha`. Opciones al crear: `color` (`w`, `b` o `r`) y `reloj` (`{base, inc}` en ms).
 
 ## Instalar o actualizar en el VPS de IT Canarias (212.227.40.8)
@@ -71,4 +73,4 @@ En otro servidor: `docker compose up -d --build` (escucha en `127.0.0.1:8090`) y
 ```bash
 npm install && npm test
 ```
-Chinchón: dos jugadores y la máquina de principio a fin, reconexión, ausencias, límites. Ajedrez: turnos, jugadas ilegales, reloj con incremento, caída de bandera, desconexión y vuelta, mate, tablas, revancha, abandono, guardado en disco. En GitHub, además, se construye la imagen Docker y se comprueba que arranca.
+Chinchón: dos jugadores y la máquina de principio a fin, reconexión, ausencias, límites. Pumba: dos jugadores y la máquina hasta el final, «¡Pumba!» olvidado y reclamado fuera de turno, desconexión y vuelta, 6 jugadores. Ajedrez: turnos, jugadas ilegales, reloj con incremento, caída de bandera, desconexión y vuelta, mate, tablas, revancha, abandono, guardado en disco. En GitHub, además, se construye la imagen Docker y se comprueba que arranca.

@@ -42,7 +42,7 @@ function crearServidor() {
         if (token) return;
         if (!S.tokenValido(m.token)) return err('Identificador no válido');
         token = m.token; nombre = S.limpiaNombre(m.nombre);
-        S.enviar(ws, { t: 'hola', version: VERSION });
+        S.enviar(ws, { t: 'hola', version: VERSION, juegos: Object.keys(S.JUEGOS) });
         S.alConectar(token, ws);
         return;
       }
