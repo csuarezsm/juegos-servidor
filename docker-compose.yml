@@ -1,0 +1,18 @@
+# Arranque: docker compose up -d --build
+# Solo escucha en 127.0.0.1:8090: desde fuera se entra por el proxy del VPS (Nginx, Caddy…)
+# con HTTPS. No toca ningún otro contenedor ni puerto.
+services:
+  juegos:
+    build: .
+    image: juegos-servidor:latest
+    container_name: juegos-servidor
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8090:8090"
+    environment:
+      - PORT=8090
+    mem_limit: 256m
+    cpus: 0.5
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "3" }

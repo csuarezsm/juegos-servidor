@@ -1,0 +1,21 @@
+# Variante si el VPS usa Traefik en Docker (cambia "web-publica" por la red de Traefik
+# y "letsencrypt" por el nombre de su certresolver). Arranque:
+#   docker compose -f despliegue/docker-compose.traefik.yml up -d --build
+services:
+  juegos:
+    build: ..
+    image: juegos-servidor:latest
+    container_name: juegos-servidor
+    restart: unless-stopped
+    environment: [PORT=8090]
+    mem_limit: 256m
+    networks: [web-publica]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.juegos.rule=Host(`juegos.itcanarias.com`)
+      - traefik.http.routers.juegos.entrypoints=websecure
+      - traefik.http.routers.juegos.tls.certresolver=letsencrypt
+      - traefik.http.services.juegos.loadbalancer.server.port=8090
+networks:
+  web-publica:
+    external: true

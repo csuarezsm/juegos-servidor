@@ -1,0 +1,5 @@
+# Añadir al Caddyfile del VPS y recargar: sudo systemctl reload caddy
+# Caddy saca el certificado HTTPS solo y ya entiende WebSocket.
+juegos.itcanarias.com {
+    reverse_proxy 127.0.0.1:8090
+}
