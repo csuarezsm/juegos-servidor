@@ -36,7 +36,7 @@ getent hosts "$DOMINIO" | grep -q "$IP_VPS" || para "$DOMINIO no apunta a $IP_VP
 if ss -tlnp 2>/dev/null | grep -q ":$PUERTO " && ! docker ps --format '{{.Names}} {{.Ports}}' | grep -q "^juegos-servidor .*:$PUERTO->"; then
   para "El puerto $PUERTO lo usa otro programa."
 fi
-# Capacidad: el servidor de juegos necesita poco (unos 50 MB de memoria en uso, 128 MB como máximo),
+# Capacidad: el servidor de juegos necesita poco (unos 60 MB de memoria en uso, 192 MB como máximo),
 # pero no se instala si el VPS ya va justo.
 MEM_LIBRE=$(awk '/MemAvailable/ {print int($2/1024)}' /proc/meminfo)
 DISCO_LIBRE=$(df -Pm /var/lib/docker 2>/dev/null | awk 'NR==2 {print $4}')

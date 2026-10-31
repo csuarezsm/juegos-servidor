@@ -1,18 +1,16 @@
 {
   "name": "juegos-servidor",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "author": "IT Canarias",
   "license": "UNLICENSED",
-  "description": "Servidor de juegos en línea común para las apps de IT Canarias (Ajedrez, Pumba, Chinchón…)",
-  "main": "servidor.js",
+  "description": "Servidor de juegos en línea común para las apps de IT Canarias (Chinchón, Ajedrez, Pumba…)",
   "type": "commonjs",
+  "main": "src/server.js",
   "scripts": {
-    "start": "node servidor.js",
-    "test": "node tests/servidor.test.js"
+    "start": "node src/server.js",
+    "test": "node test/chinchon.test.mjs && node test/ajedrez.test.mjs"
   },
-  "dependencies": {
-    "ws": "^8.18.0"
-  },
-  "engines": { "node": ">=20" }
+  "engines": { "node": ">=22" },
+  "dependencies": { "ws": "^8.18.0" }
 }

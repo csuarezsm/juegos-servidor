@@ -1,78 +1,74 @@
 # Servidor de juegos en línea · IT Canarias
 
-Un solo servicio para jugar en línea a las apps de IT Canarias (Ajedrez; después Pumba, Chinchón y las que vengan).
+Un solo servidor para jugar en línea a todas las apps de juegos de IT Canarias: hoy **Chinchón** y **Ajedrez**; después **Pumba** y las que vengan.
+Dirección: `wss://juegos.itcanarias.com/ws` · Comprobación: `https://juegos.itcanarias.com/salud`
 
 © 2026 IT Canarias. Todos los derechos reservados.
 
+Guía para conectar cada app: documento «Servidor de juegos en línea — guía para conectar cada app».
+
 ## Cómo funciona
 
-- **Node.js + WebSocket** (`ws`), en su propio contenedor Docker y su propio puerto (`127.0.0.1:8090`), detrás del proxy que ya tenga el VPS. No toca ningún otro proyecto.
-- **Salas con código** de 4 caracteres (sin 0/O ni 1/I) para compartir por WhatsApp. Sin cuentas ni contraseñas.
-- **El servidor valida cada jugada** con el módulo del juego. Nadie puede hacer trampas desde la app.
-- **Reconexión**: al entrar en una sala, cada jugador recibe una ficha (token). Si se corta la conexión, vuelve a su sitio con ella.
-- **Reloj en el servidor**: decide él cuándo se acaba el tiempo.
-- **Nada en disco**: las salas viven en memoria. Una sala sin nadie conectado se borra a los 10 minutos; una sin actividad, a las 6 horas.
-- **Protección**: mensajes de 4 KB como máximo, unos 6 mensajes por segundo por conexión y 30 salas por hora por IP.
-- **Consumo**: unos 40-60 MB de memoria y casi nada de CPU en reposo. Límites del contenedor: 128 MB de memoria, medio núcleo y 64 procesos; Node limitado a 96 MB de memoria. Cada sala ocupa unos pocos KB, medido: 300 salas llenas (600 jugadores) = 76 MB. El máximo es de 800 salas a la vez (unos 110 MB), dentro del límite. Si se llena, la app avisa de que lo intenten en un rato.
-- **Privacidad**: solo pasan por el servidor el nombre que pone el jugador y sus jugadas. No se guardan.
+- **Salas con código** de 4 caracteres (sin 0/O ni 1/I) para compartir por WhatsApp. Sin cuentas: cada app genera una **ficha** (token) y la guarda; con ella vuelve a su silla.
+- **Sala de espera** con anfitrión. En los juegos de cartas puede añadir a la máquina en las sillas libres y empieza cuando quiere. Ajedrez empieza solo al entrar el segundo jugador.
+- **El servidor manda**: reparte, guarda las cartas, lleva el reloj y comprueba cada jugada con el mismo motor que la app (`motores/<juego>/`). A cada jugador solo le envía lo que puede ver.
+- **Ausencias**: en los juegos de cartas, si alguien tarda más de 30 s sin conexión en su turno, la máquina juega por él hasta que vuelva. En ajedrez se le espera (corre su reloj); salir de la sala en juego es rendirse.
+- **Revancha** (ajedrez): cuando la piden los dos, partida nueva en la misma sala con los colores cambiados.
+- **Partidas guardadas** en el volumen `juegos-datos`: sobreviven a reinicios y actualizaciones; los móviles se reconectan solos.
+- **Límites**: mensajes de 4 KB · 40 mensajes cada 10 s por conexión · 10 códigos fallidos por minuto · 500 salas a la vez.
+- **Limpieza**: las salas se borran 1 h después de terminar o tras 12 h sin nadie conectado.
+- **Privacidad**: pasan por el servidor el nombre que pone el jugador y sus jugadas. No se guarda nada más y nada sale del servidor.
 
-## Añadir un juego
+## Juegos
 
-Cada juego es un archivo en `juegos/` con la misma interfaz (ver `juegos/ajedrez.js`):
+| Juego | `juego` | Jugadores | Módulo | Motor (copiado de la app) |
+|---|---|---|---|---|
+| Chinchón | `chinchon` | 2–4 (+ máquina) | `src/juegos/chinchon.js` | `motores/chinchon/marcador.js`, `juego.js` |
+| Ajedrez | `ajedrez` | 2 | `src/juegos/ajedrez.js` | `motores/ajedrez/ajedrez.js` |
 
-| Función | Qué hace |
-|---|---|
-| `jugadores` | Número de asientos |
-| `asientoCreador(opciones)` | Asiento de quien crea la sala |
-| `iniciar(opciones)` | Estado inicial |
-| `turno(estado)` | Asiento al que le toca |
-| `jugada(estado, asiento, jugada, ahora)` | Valida y aplica; devuelve `{ ok }` o `{ error }` |
-| `accion(estado, asiento, accion, ahora)` | Rendirse, tablas… |
-| `vista(estado, asiento, ahora)` | Lo que ve cada jugador (en cartas, nunca las de los demás) |
-| `fin(estado)` | Si la partida ha terminado |
-| `tiempoHastaBandera` / `comprobarTiempo` | Opcional, si hay reloj |
-
-Después se añade a `JUEGOS` en `servidor.js`. `compartido/ajedrez.js` es una copia del archivo de reglas de la app Ajedrez: si cambian las reglas allí, se copia aquí.
+Para añadir un juego: un módulo en `src/juegos/` con `id`, `min`, `max`, `opciones`, `iniciar`, `turnoDe`, `jugada`, `pasoAuto`, `esperaListos`, `siguienteMano`, `vista`, `terminada` (y, si tiene reloj, `reloj` y `alVencer`; si no admite máquina, `sinMaquina`), sus archivos de reglas en `motores/<juego>/`, y registrarlo en `JUEGOS` de `src/salas.js`. **Si cambian las reglas en una app, se vuelven a copiar aquí.**
 
 ## Protocolo (JSON por WebSocket en `/ws`)
 
-App → servidor: `crear {juego, nombre, opciones}` · `unirse {codigo, nombre, token?, juego?}` · `jugada {jugada}` · `accion {accion: rendirse|tablas|rechazar|revancha}` · `salir` · `ping`.
+| La app envía | Para |
+|---|---|
+| `{t:'hola', token, nombre}` | Identificarse al conectar (y al reconectar) |
+| `{t:'crear', juego, opciones}` | Crear una sala (quien la crea es el anfitrión) |
+| `{t:'unirse', codigo}` | Entrar con el código |
+| `{t:'bot'}` · `{t:'quitar', asiento}` · `{t:'empezar'}` | Acciones del anfitrión en la sala de espera |
+| `{t:'jugada', a:{tipo, …}}` | Cualquier acción de juego (ver tabla de juegos) |
+| `{t:'salir'}` | Dejar la sala |
+| `{t:'ping'}` | Mantener viva la conexión (cada 25 s) |
 
-Servidor → app: `hola {protocolo, juegos}` · `sala {codigo, asiento, token}` · `estado {codigo, asiento, jugadores, turno, estado, revancha}` · `error {codigo, msg}` · `pong`.
+El servidor responde con `{t:'hola', version}`, `{t:'sala', sala}` (la sala tal como la ve ese jugador, cada vez que cambia; `null` = fuera de la sala), `{t:'error', msg}` y `{t:'pong'}`.
 
-## Instalar en el VPS de IT Canarias (212.227.40.8)
+Acciones por juego:
+- **Chinchón**: `robar` (`de: 'mazo'|'descarte'`), `tirar` (`carta`, `cerrar`), `listo`, `reenganche`.
+- **Ajedrez**: `mover` (`uci`, p. ej. `e7e8q`), `tablas` (ofrecer o aceptar), `rechazar`, `rendirse`, `revancha`. Opciones al crear: `color` (`w`, `b` o `r`) y `reloj` (`{base, inc}` en ms).
+
+## Instalar o actualizar en el VPS de IT Canarias (212.227.40.8)
 
 ```bash
-cd /opt && git clone https://github.com/csuarezsm/juegos-servidor.git && cd juegos-servidor
-bash despliegue/instalar-vps.sh
+cd /opt/juegos-servidor && git pull && bash despliegue/instalar-vps.sh
 ```
+(La primera vez: `cd /opt && git clone https://github.com/csuarezsm/juegos-servidor.git && cd juegos-servidor && bash despliegue/instalar-vps.sh`.)
 
-El script comprueba la capacidad del VPS (memoria, disco y carga), arranca el contenedor en la red `proxy-interno`, añade `juegos.itcanarias.com` a `nginx-sat` (con copia de seguridad y vuelta atrás si `nginx -t` falla), saca el certificado con certbot y comprueba `https://juegos.itcanarias.com/salud`. Para actualizar: `git pull && bash despliegue/instalar-vps.sh`.
+El script comprueba la capacidad del VPS (memoria, disco y carga; `FORZAR=1` delante para seguir con carga alta), construye y arranca el contenedor `juegos-servidor` en la red `proxy-interno`, añade `juegos.itcanarias.com` a `nginx-sat` (con copia de seguridad y vuelta atrás si `nginx -t` falla), saca el certificado con certbot y comprueba `/salud`. No toca ningún otro contenedor.
 
-## Instalar en otro servidor
+**Consumo**: unos 60 MB en reposo. Medido con 300 partidas de ajedrez a la vez (600 jugadores): 120 MB, contando también los clientes de prueba en el mismo proceso. Límites del contenedor: 192 MB de memoria, medio núcleo, 64 procesos, sistema de archivos de solo lectura salvo `/datos`.
 
-Requisitos: Docker con `docker compose`, y un registro DNS `juegos.itcanarias.com` (tipo A) apuntando a la IP del VPS.
+| Para | Comando |
+|---|---|
+| Ver si está vivo | `curl -s https://juegos.itcanarias.com/salud` |
+| Ver el registro | `docker logs --tail 100 -f juegos-servidor` |
+| Consumo | `docker stats --no-stream juegos-servidor` |
+| Reiniciar | `docker restart juegos-servidor` |
 
-```bash
-git clone https://github.com/csuarezsm/juegos-servidor.git
-cd juegos-servidor
-docker compose up -d --build
-curl http://127.0.0.1:8090/salud          # → {"ok":true,…}
-```
-
-Luego, el proxy (uno de estos, según lo que tenga el VPS):
-
-- **Nginx**: `despliegue/nginx.conf` + `certbot --nginx -d juegos.itcanarias.com`.
-- **Caddy**: añadir `despliegue/Caddyfile` al Caddyfile y recargar.
-- **Traefik**: usar `despliegue/docker-compose.traefik.yml` en lugar del `docker-compose.yml`.
-
-Comprobar desde fuera: `https://juegos.itcanarias.com/salud`.
-
-Actualizar: `git pull && docker compose up -d --build`. Ver el registro: `docker logs -f juegos-servidor`.
+En otro servidor: `docker compose up -d --build` (escucha en `127.0.0.1:8090`) y un proxy delante (`despliegue/nginx.conf`, `Caddyfile` o `docker-compose.traefik.yml`).
 
 ## Pruebas
 
 ```bash
-npm install
-npm test
+npm install && npm test
 ```
+Chinchón: dos jugadores y la máquina de principio a fin, reconexión, ausencias, límites. Ajedrez: turnos, jugadas ilegales, reloj con incremento, caída de bandera, desconexión y vuelta, mate, tablas, revancha, abandono, guardado en disco. En GitHub, además, se construye la imagen Docker y se comprueba que arranca.

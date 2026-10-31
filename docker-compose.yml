@@ -11,10 +11,17 @@ services:
       - "127.0.0.1:8090:8090"
     environment:
       - PORT=8090
-      - NODE_OPTIONS=--max-old-space-size=96
-    mem_limit: 128m
+      - NODE_OPTIONS=--max-old-space-size=140
+    mem_limit: 192m
     cpus: 0.5
     pids_limit: 64
+    volumes:
+      - juegos-datos:/datos          # partidas en curso: sobreviven a reinicios y actualizaciones
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
     logging:
       driver: json-file
       options: { max-size: "5m", max-file: "3" }
+volumes:
+  juegos-datos:
