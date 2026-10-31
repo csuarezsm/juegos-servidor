@@ -44,12 +44,16 @@ CARGA=$(awk '{print $2}' /proc/loadavg); NUCLEOS=$(nproc)
 info "Memoria disponible: ${MEM_LIBRE} MB · disco libre: ${DISCO_LIBRE} MB · carga (5 min): $CARGA con $NUCLEOS núcleos"
 [ "$MEM_LIBRE" -ge 400 ] || para "Quedan menos de 400 MB de memoria libres. Mejor no añadir nada hasta liberar memoria."
 [ "${DISCO_LIBRE:-0}" -ge 1500 ] || para "Quedan menos de 1,5 GB de disco para Docker (la construcción necesita unos 300 MB)."
-awk -v c="$CARGA" -v n="$NUCLEOS" 'BEGIN { exit !(c < n * 1.5) }' || para "El VPS va muy cargado ahora mismo (carga $CARGA). Prueba más tarde."
+if ! awk -v c="$CARGA" -v n="$NUCLEOS" 'BEGIN { exit !(c < n * 1.5) }'; then
+  if [ "${FORZAR:-}" = "1" ]; then info "Carga alta ($CARGA), pero sigo porque has puesto FORZAR=1. La construcción se hace con prioridad baja."
+  else para "El VPS va muy cargado ahora mismo (carga $CARGA con $NUCLEOS núcleos). Prueba más tarde o, si siempre está así, ejecuta: FORZAR=1 bash despliegue/instalar-vps.sh"; fi
+fi
 ok "Comprobaciones previas (hay capacidad de sobra)"
 
 # --- 2. Contenedor ---
 info "Construyendo y arrancando juegos-servidor (tarda un poco la primera vez)…"
-docker compose -f despliegue/docker-compose.vps.yml up -d --build
+nice -n 19 docker compose -f despliegue/docker-compose.vps.yml build
+docker compose -f despliegue/docker-compose.vps.yml up -d
 docker image prune -f --filter "label=com.docker.compose.project=despliegue" >/dev/null 2>&1 || true   # sin imágenes viejas del propio servidor
 for i in $(seq 1 30); do curl -fs "http://127.0.0.1:$PUERTO/salud" >/dev/null && break; sleep 1; done
 curl -fs "http://127.0.0.1:$PUERTO/salud" >/dev/null || { docker logs --tail 50 juegos-servidor; para "El servidor no responde en 127.0.0.1:$PUERTO."; }
