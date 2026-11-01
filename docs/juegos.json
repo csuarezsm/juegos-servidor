@@ -41,6 +41,16 @@
       "descarga": "https://csuarezsm.github.io/Pumba/",
       "web": "https://csuarezsm.github.io/Pumba/app/",
       "icono": "https://csuarezsm.github.io/Pumba/icon.png"
+    },
+    {
+      "id": "parchis",
+      "nombre": "Parchís",
+      "emoji": "🎲",
+      "descripcion": "El parchís de siempre, de 2 a 4: contra la máquina, con amigos en el mismo móvil o en línea.",
+      "android": "com.itcanarias.parchis",
+      "descarga": "https://csuarezsm.github.io/Parchis/",
+      "web": "https://csuarezsm.github.io/Parchis/app/",
+      "icono": "https://csuarezsm.github.io/Parchis/icon.png"
     }
   ]
 }
