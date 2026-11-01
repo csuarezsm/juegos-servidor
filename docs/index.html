@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Juegos de IT Canarias</title>
+<meta name="description" content="Ajedrez, Damas, Chinchón y Pumba: juegos gratis y sin anuncios de IT Canarias, para Android e iPhone, contra la máquina, con amigos o en línea.">
+<meta property="og:title" content="Juegos de IT Canarias">
+<meta property="og:description" content="Ajedrez, Damas, Chinchón y Pumba. Gratis y sin anuncios, para Android e iPhone.">
+<style>
+  :root{--bg:#141a22;--card:#212b38;--txt:#f2f4f7;--mut:#a9b4c2;--gold:#f2b84b}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:17px/1.5 system-ui,-apple-system,Roboto,sans-serif;padding:28px 20px;max-width:620px;margin:0 auto}
+  h1{font-size:30px;margin:6px 0 4px;text-align:center}
+  .sub{color:var(--mut);text-align:center;margin:0 0 22px}
+  .g{display:flex;gap:14px;align-items:center;background:var(--card);border-radius:18px;padding:14px;margin:12px 0}
+  .g img{width:76px;height:76px;border-radius:18px;flex:0 0 auto;box-shadow:0 6px 18px rgba(0,0,0,.35)}
+  .g .t{flex:1;min-width:0}
+  .g b{font-size:20px}
+  .g p{margin:2px 0 8px;color:var(--mut);font-size:15px;line-height:1.35}
+  .g a{display:inline-block;background:var(--gold);color:#2a1a00;text-decoration:none;font-weight:800;padding:8px 14px;border-radius:12px;font-size:15px;margin:0 6px 4px 0}
+  .g a.sec{background:transparent;color:var(--txt);border:1px solid var(--mut)}
+  footer{color:var(--mut);font-size:13px;margin-top:26px;text-align:center}
+  footer a{color:var(--mut)}
+</style>
+</head>
+<body>
+  <h1>🎲 Juegos de IT Canarias</h1>
+  <p class="sub">Gratis, sin anuncios y sin cuentas. Para Android e iPhone.<br>Contra la máquina, con amigos en el mismo móvil o en línea.</p>
+  <div id="lista"></div>
+  <footer>© 2026 <a href="https://itcanarias.com">IT Canarias</a>. Todos los derechos reservados.</footer>
+<script>
+const e = s => String(s || '').replace(/[&<>"']/g, x => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[x]));
+const ok = u => /^https:\/\//.test(String(u || ''));
+const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+fetch('juegos.json', { cache: 'no-cache' }).then(r => r.json()).then(c => {
+  document.getElementById('lista').innerHTML = (c.juegos || []).filter(j => j && ok(j.descarga || j.web)).map(j => {
+    const btns = ios
+      ? (ok(j.web) ? `<a href="${e(j.web)}">📱 Abrir en el iPhone</a>` : '') + (ok(j.descarga) ? `<a class="sec" href="${e(j.descarga)}">Más información</a>` : '')
+      : (ok(j.play) ? `<a href="${e(j.play)}">▶ Google Play</a>` : '') + (ok(j.descarga) ? `<a${ok(j.play) ? ' class="sec"' : ''} href="${e(j.descarga)}">⬇️ Descargar para Android</a>` : '') + (ok(j.web) ? `<a class="sec" href="${e(j.web)}">📱 iPhone / web</a>` : '');
+    return `<div class="g">${ok(j.icono) ? `<img src="${e(j.icono)}" alt="Icono de ${e(j.nombre)}">` : ''}<div class="t"><b>${e(j.emoji)} ${e(j.nombre)}</b><p>${e(j.descripcion)}</p>${btns}</div></div>`;
+  }).join('');
+}).catch(() => { document.getElementById('lista').textContent = 'No se pudo cargar la lista de juegos.'; });
+</script>
+</body>
+</html>

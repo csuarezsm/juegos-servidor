@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "nota": "Catálogo común de los juegos de IT Canarias. Las apps lo leen como mucho cada 12 horas: añadir aquí un juego lo muestra en todas. Campos: id, nombre, emoji, descripcion, android (paquete), descarga, web, icono y, si está en Google Play, play.",
+  "juegos": [
+    {
+      "id": "ajedrez",
+      "nombre": "Ajedrez",
+      "emoji": "♞",
+      "descripcion": "Contra la máquina (6 niveles), con un amigo o en línea, y problemas de mate.",
+      "android": "com.itcanarias.ajedrez",
+      "descarga": "https://csuarezsm.github.io/Ajedrez/",
+      "web": "https://csuarezsm.github.io/Ajedrez/app/",
+      "icono": "https://csuarezsm.github.io/Ajedrez/icon.png"
+    },
+    {
+      "id": "damas",
+      "nombre": "Damas",
+      "emoji": "⛀",
+      "descripcion": "Damas españolas contra la máquina, con un amigo o en línea, y problemas.",
+      "android": "com.itcanarias.damas",
+      "descarga": "https://csuarezsm.github.io/Damas/",
+      "web": "https://csuarezsm.github.io/Damas/app/",
+      "icono": "https://csuarezsm.github.io/Damas/icon.png"
+    },
+    {
+      "id": "chinchon",
+      "nombre": "Chinchón",
+      "emoji": "🃏",
+      "descripcion": "Marcador de puntos del chinchón y partidas contra la máquina o en línea.",
+      "android": "com.itcanarias.chinchon",
+      "descarga": "https://csuarezsm.github.io/chinchon-marcador/",
+      "web": "https://csuarezsm.github.io/chinchon-marcador/app/",
+      "icono": "https://csuarezsm.github.io/chinchon-marcador/icon.png"
+    },
+    {
+      "id": "pumba",
+      "nombre": "Pumba",
+      "emoji": "🎴",
+      "descripcion": "El juego de cartas Pumba contra la máquina o en línea, y los puntos de vuestras partidas.",
+      "android": "com.itcanarias.pumba",
+      "descarga": "https://csuarezsm.github.io/Pumba/",
+      "web": "https://csuarezsm.github.io/Pumba/app/",
+      "icono": "https://csuarezsm.github.io/Pumba/icon.png"
+    }
+  ]
+}

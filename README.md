@@ -75,3 +75,7 @@ En otro servidor: `docker compose up -d --build` (escucha en `127.0.0.1:8090`) y
 npm install && npm test
 ```
 Chinchón: dos jugadores y la máquina de principio a fin, reconexión, ausencias, límites. Pumba: dos jugadores y la máquina hasta el final, «¡Pumba!» olvidado y reclamado fuera de turno, desconexión y vuelta, 6 jugadores. Ajedrez: turnos, jugadas ilegales, reloj con incremento, caída de bandera, desconexión y vuelta, mate, tablas, revancha, abandono, guardado en disco. En GitHub, además, se construye la imagen Docker y se comprueba que arranca.
+
+## Catálogo de juegos (`docs/`)
+
+`docs/juegos.json` es el catálogo común que leen todas las apps en «🎲 Más juegos de IT Canarias», y `docs/index.html` la página con todos los juegos (GitHub Pages: https://csuarezsm.github.io/juegos-servidor/). Para añadir un juego, se añade una entrada (`id`, `nombre`, `emoji`, `descripcion`, `android`, `descarga`, `web`, `icono` y, cuando esté en Google Play, `play`): en unas horas aparece en todas las apps sin actualizarlas.
