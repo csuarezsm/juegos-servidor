@@ -12,8 +12,8 @@ Guía para conectar cada app: documento «Servidor de juegos en línea — guía
 - **Salas con código** de 4 caracteres (sin 0/O ni 1/I) para compartir por WhatsApp. Sin cuentas: cada app genera una **ficha** (token) y la guarda; con ella vuelve a su silla.
 - **Sala de espera** con anfitrión. En los juegos de cartas puede añadir a la máquina en las sillas libres y empieza cuando quiere. Ajedrez empieza solo al entrar el segundo jugador.
 - **El servidor manda**: reparte, guarda las cartas, lleva el reloj y comprueba cada jugada con el mismo motor que la app (`motores/<juego>/`). A cada jugador solo le envía lo que puede ver.
-- **Ausencias**: en los juegos de cartas, si alguien tarda más de 30 s sin conexión en su turno, la máquina juega por él hasta que vuelva. En ajedrez se le espera (corre su reloj); salir de la sala en juego es rendirse.
-- **Revancha** (ajedrez): cuando la piden los dos, partida nueva en la misma sala con los colores cambiados.
+- **Ausencias**: en los juegos de cartas, si alguien tarda más de 30 s sin conexión en su turno, la máquina juega por él hasta que vuelva. En ajedrez y damas se le espera (corre su reloj); salir de la sala en juego es rendirse.
+- **Revancha** (ajedrez y damas): cuando la piden los dos, partida nueva en la misma sala con los colores cambiados.
 - **Partidas guardadas** en el volumen `juegos-datos`: sobreviven a reinicios y actualizaciones; los móviles se reconectan solos.
 - **Límites**: mensajes de 4 KB · 40 mensajes cada 10 s por conexión · 10 códigos fallidos por minuto · 500 salas a la vez.
 - **Limpieza**: las salas se borran 1 h después de terminar o tras 12 h sin nadie conectado.
@@ -26,6 +26,7 @@ Guía para conectar cada app: documento «Servidor de juegos en línea — guía
 | Chinchón | `chinchon` | 2–4 (+ máquina) | `src/juegos/chinchon.js` | `motores/chinchon/marcador.js`, `juego.js` |
 | Ajedrez | `ajedrez` | 2 | `src/juegos/ajedrez.js` | `motores/ajedrez/ajedrez.js` |
 | Pumba | `pumba` | 2–6 (+ máquina) | `src/juegos/pumba.js` | `motores/pumba/marcador.js`, `juego.js` |
+| Damas (españolas) | `damas` | 2 | `src/juegos/damas.js` | `motores/damas/damas.js` |
 
 Para añadir un juego: un módulo en `src/juegos/` con `id`, `min`, `max`, `opciones`, `iniciar`, `turnoDe`, `jugada`, `pasoAuto`, `esperaListos`, `siguienteMano`, `vista`, `terminada` (y, si tiene reloj, `reloj` y `alVencer`; si no admite máquina, `sinMaquina`; si la máquina debe esperar antes de jugar, `pausaBot`), sus archivos de reglas en `motores/<juego>/`, y registrarlo en `JUEGOS` de `src/salas.js`. **Si cambian las reglas en una app, se vuelven a copiar aquí.**
 

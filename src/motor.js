@@ -34,4 +34,7 @@ const pumba = cargar(['pumba/marcador.js', 'pumba/juego.js'], [
 // Ajedrez: su archivo de reglas no depende de nada y se carga tal cual
 const ajedrez = require(path.join(MOTORES, 'ajedrez', 'ajedrez.js'));
 
-module.exports = { chinchon, ajedrez, pumba };
+// Damas: igual, un solo archivo de reglas sin dependencias
+const damas = require(path.join(MOTORES, 'damas', 'damas.js'));
+
+module.exports = { chinchon, ajedrez, pumba, damas };

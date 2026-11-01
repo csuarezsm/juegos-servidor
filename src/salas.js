@@ -12,6 +12,7 @@ const JUEGOS = {
   chinchon: require('./juegos/chinchon'),
   ajedrez: require('./juegos/ajedrez'),
   pumba: require('./juegos/pumba'),
+  damas: require('./juegos/damas'),
   // ← cada juego nuevo, un módulo con la misma interfaz
 };
 
