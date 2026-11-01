@@ -53,7 +53,9 @@ function crearServidor() {
       if (typeof m.nombre === 'string') nombre = S.limpiaNombre(m.nombre) || nombre;
       let e = null;
       switch (m.t) {
-        case 'crear': e = S.crear(token, nombre, String(m.juego || ''), m.opciones); break;
+        case 'crear': e = S.crear(token, nombre, String(m.juego || ''), m.opciones, m.publica === true); break;
+        case 'buscar': e = S.buscar(token, nombre, String(m.juego || ''), m.opciones); break;
+        case 'lista': S.enviar(ws, { t: 'lista', juego: String(m.juego || ''), salas: S.lista(String(m.juego || '')) }); break;
         case 'unirse':
           if (fallos >= 10) { e = 'Demasiados intentos; espera un minuto'; break; }
           e = S.unirse(token, nombre, m.codigo);

@@ -23,6 +23,11 @@ const AUSENTE_MS = +process.env.AUSENTE_MS || 30000;      // sin conexión este 
 const SEGUIR_MS = +process.env.SEGUIR_MS || 25000;        // tras una mano, se reparte solo pasado este tiempo
 const MAX_SALAS = +process.env.MAX_SALAS || 500;          // medido: 300 partidas llenas ≈ 120 MB (con los clientes de prueba en el mismo proceso)
 const CADUCA_MS = 12 * 3600e3, CADUCA_FIN_MS = 3600e3;
+// «Jugar con cualquiera»: con dos o más personas la mesa se completa con la máquina pasado ESPERA_AUTO_MS;
+// quien está solo espera ESPERA_SOLO_MS y luego juega con la máquina (en los juegos sin máquina se espera siempre)
+const ESPERA_AUTO_MS = +process.env.ESPERA_AUTO_MS || 15000;
+const ESPERA_SOLO_MS = +process.env.ESPERA_SOLO_MS || 45000;
+const MAX_LISTA = 30;
 
 const salas = new Map();          // codigo → sala
 const conexiones = new Map();     // token → Set(ws)
@@ -50,6 +55,7 @@ function vistaSala(s, token) {
   const J = JUEGOS[s.juego];
   return {
     codigo: s.codigo, juego: s.juego, estado: s.estado, opciones: s.opciones, max: J.max, min: J.min,
+    publica: !!s.publica, auto: !!s.auto, empiezaEn: s.estado === 'espera' ? empiezaEn(s) : null,
     yo: yo ? yo.id : null, anfitrion: !!(yo && yo.token === s.anfitrion),
     asientos: s.asientos.map(a => ({ id: a.id, nombre: a.nombre, bot: !!a.bot, conectado: a.bot || (!a.fuera && conectado(a.token)), fuera: !!a.fuera, anfitrion: a.token === s.anfitrion })),
     revancha: s.revancha || [],
@@ -68,6 +74,11 @@ function difundir(s) {
 const seguro = (s, fn) => () => { try { fn(); } catch (e) { console.error('Error en la sala ' + s.codigo + ':', e); } };
 function programar(s) {
   clearTimeout(s.timer); s.timer = null;
+  if (s.estado === 'espera' && s.auto) {
+    const t = empiezaEn(s);
+    if (t != null) s.timer = setTimeout(seguro(s, () => { if (s.estado === 'espera' && salas.get(s.codigo) === s) autoEmpezar(s); }), Math.max(0, t - Date.now()) + 30);
+    return;
+  }
   if (s.estado !== 'jugando') return;
   const J = JUEGOS[s.juego], g = s.estadoJuego;
   if (J.terminada(g)) { s.estado = 'fin'; s.finEn = Date.now(); s.revancha = []; difundir(s); return; }
@@ -95,14 +106,48 @@ function programar(s) {
   s.timer = setTimeout(sigue, SEGUIR_MS);
 }
 
+/* ---------- Partidas públicas y «Jugar con cualquiera» ---------- */
+const humanosDe = s => s.asientos.filter(a => !a.bot && !a.fuera);
+// Cuándo empieza sola una sala de emparejamiento (null: no empieza sola, se espera a completar la mesa)
+function empiezaEn(s) {
+  if (!s.auto || s.estado !== 'espera' || JUEGOS[s.juego].sinMaquina) return null;
+  return humanosDe(s).length >= 2 ? (s.ultimaEntrada || s.creada) + ESPERA_AUTO_MS : s.creada + ESPERA_SOLO_MS;
+}
+function arrancarSala(s) { const J = JUEGOS[s.juego]; s.estadoJuego = J.iniciar(s); s.estado = 'jugando'; contarPartida(s.juego); }
+function autoEmpezar(s) {
+  const J = JUEGOS[s.juego];
+  while (s.asientos.length < Math.max(J.min, J.max)) ponerBot(s);
+  arrancarSala(s); difundir(s);
+}
+function lista(juego) {
+  if (!JUEGOS[juego]) return [];
+  const J = JUEGOS[juego];
+  return [...salas.values()].filter(s => s.juego === juego && s.publica && s.estado === 'espera' && s.asientos.length < J.max && humanosDe(s).length)
+    .sort((a, b) => b.asientos.length - a.asientos.length || a.creada - b.creada).slice(0, MAX_LISTA)
+    .map(s => { const h = s.asientos.find(a => a.token === s.anfitrion) || humanosDe(s)[0];
+      return { codigo: s.codigo, nombre: h ? h.nombre : '', jugadores: s.asientos.length, max: J.max, auto: !!s.auto, opciones: s.opciones, empiezaEn: empiezaEn(s) }; });
+}
+// Busca una mesa de emparejamiento con sitio (la más llena); si no hay, crea una nueva
+function buscar(token, nombre, juego, opciones) {
+  const J = JUEGOS[juego]; if (!J) return 'Juego desconocido';
+  const actual = salaDe(token);
+  if (actual && actual.auto && actual.estado === 'espera') return null;
+  const libre = [...salas.values()].filter(s => s.juego === juego && s.auto && s.estado === 'espera' && s.asientos.length < J.max && !s.asientos.some(a => a.token === token))
+    .sort((a, b) => humanosDe(b).length - humanosDe(a).length || a.creada - b.creada)[0];
+  if (libre) return unirse(token, nombre, libre.codigo);
+  const e = crear(token, nombre, juego, opciones, true); if (e) return e;
+  const s = salaDe(token); s.auto = true; difundir(s);
+  return null;
+}
+
 /* ---------- Acciones ---------- */
 function salaDe(token) { for (const s of salas.values()) if (s.asientos.some(a => a.token === token)) return s; return null; }
 
-function crear(token, nombre, juego, opciones) {
+function crear(token, nombre, juego, opciones, publica) {
   const J = JUEGOS[juego]; if (!J) return 'Juego desconocido';
   if (salaDe(token)) salir(token);
   if (salas.size >= MAX_SALAS) return 'El servidor está lleno; prueba en un rato';
-  const s = { codigo: nuevoCodigo(), juego, opciones: J.opciones(opciones), anfitrion: token, estado: 'espera', asientos: [], estadoJuego: null, creada: Date.now(), actividad: Date.now() };
+  const s = { codigo: nuevoCodigo(), juego, opciones: J.opciones(opciones), publica: !!publica, anfitrion: token, estado: 'espera', asientos: [], estadoJuego: null, creada: Date.now(), actividad: Date.now() };
   s.asientos.push({ id: 'p1', token, nombre: limpiaNombre(nombre) || 'Jugador 1' });
   salas.set(s.codigo, s);
   difundir(s);
@@ -117,9 +162,10 @@ function unirse(token, nombre, codigo) {
   if (s.asientos.length >= JUEGOS[s.juego].max) return 'La partida está completa';
   const otra = salaDe(token); if (otra) salir(token);
   s.asientos.push({ id: siguienteId(s), token, nombre: limpiaNombre(nombre) || 'Jugador ' + (s.asientos.length + 1) });
-  // juegos que empiezan solos al completarse la mesa (ajedrez)
+  s.ultimaEntrada = Date.now();
+  // juegos que empiezan solos al completarse la mesa (ajedrez); y las mesas de «Jugar con cualquiera» al llenarse
   const J = JUEGOS[s.juego];
-  if (J.autoEmpezar && s.asientos.length >= J.max) { s.estadoJuego = J.iniciar(s); s.estado = 'jugando'; contarPartida(s.juego); }
+  if ((J.autoEmpezar || s.auto) && s.asientos.length >= J.max) arrancarSala(s);
   difundir(s);
   return null;
 }
@@ -131,11 +177,14 @@ function anadirBot(token) {
   if (s.estado !== 'espera') return 'La partida ya ha empezado';
   if (JUEGOS[s.juego].sinMaquina) return 'En este juego no se puede añadir a la máquina';
   if (s.asientos.length >= JUEGOS[s.juego].max) return 'La partida está completa';
-  const usados = new Set(s.asientos.map(a => a.nombre.replace(/^🤖 /, '')));
-  const libres = BOT_NOMBRES.filter(n => !usados.has(n));
-  s.asientos.push({ id: siguienteId(s), token: 'bot-' + crypto.randomUUID(), bot: true, nombre: '🤖 ' + (libres[crypto.randomInt(libres.length)] || 'Máquina') });
+  ponerBot(s);
   difundir(s);
   return null;
+}
+function ponerBot(s) {
+  const usados = new Set(s.asientos.map(a => a.nombre.replace(/^🤖 /, '')));
+  const libres = BOT_NOMBRES.filter(n => !usados.has(n));
+  s.asientos.push({ id: siguienteId(s), token: 'bot-' + crypto.randomUUID(), bot: true, nombre: '🤖 ' + (libres.length ? libres[crypto.randomInt(libres.length)] : 'Máquina') });
 }
 function quitar(token, asiento) {
   const s = salaDe(token);
@@ -152,8 +201,7 @@ function empezar(token) {
   if (!s || s.anfitrion !== token) return 'Solo quien crea la partida puede empezarla';
   if (s.estado !== 'espera') return 'Ya ha empezado';
   if (s.asientos.length < J.min) return 'Hacen falta al menos ' + J.min + ' jugadores (puedes añadir a la máquina)';
-  s.estadoJuego = J.iniciar(s); contarPartida(s.juego);
-  s.estado = 'jugando';
+  arrancarSala(s);
   difundir(s);
   return null;
 }
@@ -254,4 +302,4 @@ function limpiar() {
 function guardarYa() { clearTimeout(guardarTimer); guardar(); }
 const estadisticas = () => ({ salas: salas.size, jugando: [...salas.values()].filter(s => s.estado === 'jugando').length, conexiones: [...conexiones.values()].reduce((n, x) => n + x.size, 0) });
 
-module.exports = { JUEGOS, tokenValido, limpiaNombre, crear, unirse, anadirBot, quitar, empezar, jugada, salir, alConectar, alDesconectar, cargar, limpiar, guardarYa, estadisticas, enviar, _salas: salas, _programar: programar, _difundir: difundir };
+module.exports = { JUEGOS, tokenValido, limpiaNombre, crear, unirse, buscar, lista, anadirBot, quitar, empezar, jugada, salir, alConectar, alDesconectar, cargar, limpiar, guardarYa, estadisticas, enviar, _salas: salas, _programar: programar, _difundir: difundir };

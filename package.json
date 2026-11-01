@@ -1,6 +1,6 @@
 {
   "name": "juegos-servidor",
-  "version": "2.4.1",
+  "version": "2.5.0",
   "private": true,
   "author": "IT Canarias",
   "license": "UNLICENSED",
@@ -9,7 +9,7 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "test": "node test/chinchon.test.mjs && node test/ajedrez.test.mjs && node test/pumba.test.mjs && node test/damas.test.mjs && node test/parchis.test.mjs && node test/contador.test.mjs"
+    "test": "node test/chinchon.test.mjs && node test/ajedrez.test.mjs && node test/pumba.test.mjs && node test/damas.test.mjs && node test/parchis.test.mjs && node test/publicas.test.mjs && node test/contador.test.mjs"
   },
   "engines": {
     "node": ">=22"

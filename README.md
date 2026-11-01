@@ -36,8 +36,10 @@ Para añadir un juego: un módulo en `src/juegos/` con `id`, `min`, `max`, `opci
 | La app envía | Para |
 |---|---|
 | `{t:'hola', token, nombre}` | Identificarse al conectar (y al reconectar) |
-| `{t:'crear', juego, opciones}` | Crear una sala (quien la crea es el anfitrión) |
+| `{t:'crear', juego, opciones, publica}` | Crear una sala (quien la crea es el anfitrión); con `publica: true` aparece en la lista de partidas públicas |
 | `{t:'unirse', codigo}` | Entrar con el código |
+| `{t:'buscar', juego, opciones}` | «Jugar con cualquiera»: entra en la mesa de emparejamiento con más gente, o abre una. Llena, empieza al momento; con dos o más personas se completa con la máquina a los 15 s, y quien está solo juega con la máquina a los 45 s (en ajedrez y damas se espera siempre al rival). La sala lleva `auto`, `publica` y `empiezaEn` (hora en ms) |
+| `{t:'lista', juego}` | Partidas públicas con sitio de ese juego → `{t:'lista', juego, salas:[{codigo, nombre, jugadores, max, auto, opciones, empiezaEn}]}` |
 | `{t:'bot'}` · `{t:'quitar', asiento}` · `{t:'empezar'}` | Acciones del anfitrión en la sala de espera |
 | `{t:'jugada', a:{tipo, …}}` | Cualquier acción de juego (ver tabla de juegos) |
 | `{t:'salir'}` | Dejar la sala |
