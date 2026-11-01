@@ -1,0 +1,46 @@
+// Pruebas del contador anónimo de instalaciones y de la página de estadísticas
+import { createRequire } from 'module';
+import os from 'os'; import fs from 'fs'; import path from 'path';
+const require = createRequire(import.meta.url);
+const DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'juegos-co-'));
+Object.assign(process.env, { DATA_DIR: DIR, ESTADISTICAS_CLAVE: 'clave-de-prueba' });
+const { crearServidor } = require('../src/server.js');
+const C = require('../src/contador.js');
+let passed = 0, failed = 0;
+const check = (n, c, x = '') => { if (c) { passed++; console.log('  ✓ ' + n); } else { failed++; console.log('  ✗ ' + n + (x ? ' → ' + x : '')); if (process.env.GITHUB_ACTIONS) console.log('::error::' + n); } };
+const { server } = crearServidor();
+await new Promise(r => server.listen(0, '127.0.0.1', r));
+const B = `http://127.0.0.1:${server.address().port}`;
+const contar = (d, ip = '1.1.1.1') => fetch(B + '/contar', { method: 'POST', body: typeof d === 'string' ? d : JSON.stringify(d), headers: { 'x-forwarded-for': ip } });
+
+console.log('Contador de instalaciones');
+let r = await contar({ juego: 'damas', plataforma: 'android', version: '1.0.3', evento: 'instalacion' });
+check('una instalación se cuenta', r.status === 204 && r.headers.get('access-control-allow-origin') === '*');
+await contar({ juego: 'damas', plataforma: 'ios', version: '1.0.3', evento: 'instalacion' });
+await contar({ juego: 'ajedrez', plataforma: 'play', version: '1.0.10', evento: 'instalacion' });
+r = await contar({ juego: 'damas', plataforma: 'android', version: '1.0.4', evento: 'actualizacion', de: '1.0.3' });
+const D = C._datos();
+check('por juego y plataforma', D.instalaciones.damas.android === 1 && D.instalaciones.damas.ios === 1 && D.instalaciones.ajedrez.play === 1);
+check('una actualización mueve la versión y no cuenta como instalación', D.versiones.damas['1.0.3'] === 1 && D.versiones.damas['1.0.4'] === 1 && D.actualizaciones.damas.android === 1);
+for (const bad of [{ juego: 'x', plataforma: 'android', version: '1.0.0', evento: 'instalacion' }, { juego: 'damas', plataforma: 'pc', version: '1.0.0', evento: 'instalacion' }, { juego: 'damas', plataforma: 'android', version: '<script>', evento: 'instalacion' }, 'no es json'])
+  r = await contar(bad);
+check('datos raros se rechazan', r.status === 400 && !D.instalaciones.x);
+let ultimo = 0; for (let i = 0; i < 35; i++) ultimo = (await contar({ juego: 'pumba', plataforma: 'web', version: '1.1.3', evento: 'instalacion' }, '9.9.9.9')).status;
+check('un mismo sitio no puede inflar el contador', ultimo === 400 && D.instalaciones.pumba.web === 30);
+C.guardarYa();
+const disco = fs.readFileSync(path.join(DIR, 'contador.json'), 'utf8');
+check('se guarda en disco y no guarda IP', disco.includes('"damas"') && !disco.includes('1.1.1.1') && !disco.includes('9.9.9.9'));
+r = await fetch(B + '/estadisticas');
+check('las estadísticas piden contraseña', r.status === 401 && /Basic/.test(r.headers.get('www-authenticate')));
+r = await fetch(B + '/estadisticas', { headers: { authorization: 'Basic ' + Buffer.from('x:mala').toString('base64') } });
+check('contraseña mala: no entra', r.status === 401);
+r = await fetch(B + '/estadisticas', { headers: { authorization: 'Basic ' + Buffer.from('carlos:clave-de-prueba').toString('base64') } });
+const html = await r.text();
+check('con la contraseña se ve la página', r.status === 200 && html.includes('Instalaciones') && html.includes('Damas') && html.includes('v1.0.4'));
+r = await fetch(B + '/estadisticas.json', { headers: { authorization: 'Basic ' + Buffer.from(':clave-de-prueba').toString('base64') } });
+check('y los datos en JSON', (await r.json()).instalaciones.damas.ios === 1);
+C.partida('damas'); C.partida('damas');
+check('cuenta las partidas en línea por día', D.partidas[new Date().toISOString().slice(0, 10)].damas === 2);
+server.close();
+console.log(`\n${passed} correctas, ${failed} fallidas`);
+process.exit(failed ? 1 : 0);

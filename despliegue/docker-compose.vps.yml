@@ -12,6 +12,7 @@ services:
     environment:
       - PORT=8090
       - NODE_OPTIONS=--max-old-space-size=140
+      - ESTADISTICAS_CLAVE=${ESTADISTICAS_CLAVE:-}   # de despliegue/.env (solo en el VPS)
     networks: [proxy-interno]
     mem_limit: 192m
     cpus: 0.5

@@ -2,11 +2,13 @@
 /*
  * Servidor de partidas en línea · IT Canarias
  * HTTP:  GET /salud  → estado (para comprobar que funciona)
+ * HTTP:  POST /contar → aviso anónimo de instalación de una app · GET /estadisticas → página con contraseña
  * WS:    /ws         → protocolo JSON (ver README.md)
  */
 const http = require('http');
 const { WebSocketServer } = require('ws');
 const S = require('./salas');
+const C = require('./contador');
 
 const PUERTO = +process.env.PORT || 8090;
 const HOST = process.env.HOST || '0.0.0.0';
@@ -20,6 +22,7 @@ function crearServidor() {
       res.end(JSON.stringify({ ok: true, servicio: 'juegos-servidor', version: VERSION, juegos: Object.keys(S.JUEGOS), ...S.estadisticas() }));
       return;
     }
+    if (C.http(req, res, S.estadisticas())) return;
     res.writeHead(404, { 'content-type': 'text/plain' }); res.end('No encontrado');
   });
 

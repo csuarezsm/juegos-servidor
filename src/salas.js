@@ -118,7 +118,7 @@ function unirse(token, nombre, codigo) {
   s.asientos.push({ id: siguienteId(s), token, nombre: limpiaNombre(nombre) || 'Jugador ' + (s.asientos.length + 1) });
   // juegos que empiezan solos al completarse la mesa (ajedrez)
   const J = JUEGOS[s.juego];
-  if (J.autoEmpezar && s.asientos.length >= J.max) { s.estadoJuego = J.iniciar(s); s.estado = 'jugando'; }
+  if (J.autoEmpezar && s.asientos.length >= J.max) { s.estadoJuego = J.iniciar(s); s.estado = 'jugando'; contarPartida(s.juego); }
   difundir(s);
   return null;
 }
@@ -151,7 +151,7 @@ function empezar(token) {
   if (!s || s.anfitrion !== token) return 'Solo quien crea la partida puede empezarla';
   if (s.estado !== 'espera') return 'Ya ha empezado';
   if (s.asientos.length < J.min) return 'Hacen falta al menos ' + J.min + ' jugadores (puedes añadir a la máquina)';
-  s.estadoJuego = J.iniciar(s);
+  s.estadoJuego = J.iniciar(s); contarPartida(s.juego);
   s.estado = 'jugando';
   difundir(s);
   return null;
@@ -165,7 +165,7 @@ function jugada(token, a) {
     if (!s.revancha.includes(yo.id)) s.revancha.push(yo.id);
     const humanos = s.asientos.filter(x => !x.bot && !x.fuera);
     if (s.asientos.every(x => !x.fuera) && humanos.every(x => s.revancha.includes(x.id))) {
-      s.ronda = (s.ronda || 0) + 1; s.estadoJuego = JUEGOS[s.juego].iniciar(s); s.estado = 'jugando'; s.revancha = []; s.finEn = null;
+      s.ronda = (s.ronda || 0) + 1; s.estadoJuego = JUEGOS[s.juego].iniciar(s); s.estado = 'jugando'; s.revancha = []; s.finEn = null; contarPartida(s.juego);
     }
     difundir(s);
     return null;
@@ -218,6 +218,9 @@ function alDesconectar(token, ws) {
   const s = salaDe(token);
   if (s) { const a = s.asientos.find(x => x.token === token); a.desconectadoEn = Date.now(); difundir(s); }
 }
+
+// partidas empezadas por día (contador anónimo)
+const contarPartida = j => { try { require('./contador').partida(j); } catch (e) {} };
 
 /* ---------- Guardado en disco (las partidas sobreviven a un reinicio) ---------- */
 function programarGuardado() { if (!guardarTimer) guardarTimer = setTimeout(guardar, 2000); }

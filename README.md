@@ -79,3 +79,9 @@ Chinchón: dos jugadores y la máquina de principio a fin, reconexión, ausencia
 ## Catálogo de juegos (`docs/`)
 
 `docs/juegos.json` es el catálogo común que leen todas las apps en «🎲 Más juegos de IT Canarias», y `docs/index.html` la página con todos los juegos (GitHub Pages: https://csuarezsm.github.io/juegos-servidor/). Para añadir un juego, se añade una entrada (`id`, `nombre`, `emoji`, `descripcion`, `android`, `descarga`, `web`, `icono` y, cuando esté en Google Play, `play`): en unas horas aparece en todas las apps sin actualizarlas.
+
+## Contador de instalaciones y estadísticas
+
+- `POST /contar` (texto JSON): cada app avisa una vez al instalarse (`evento: 'instalacion'`) y una vez por versión nueva (`'actualizacion'`, con `de`), con `juego`, `plataforma` (`android`, `play`, `ios`, `web`) y `version`. Solo se suman números por juego, plataforma, día y versión: no se guarda la IP ni ningún identificador. Como mucho 30 avisos por hora desde una misma IP (solo en memoria). También se cuentan las partidas en línea que empiezan.
+- `GET /estadisticas`: página con contraseña (usuario cualquiera). La contraseña la pide `instalar-vps.sh` la primera vez y se guarda solo en el VPS, en `despliegue/.env` (`ESTADISTICAS_CLAVE`, mínimo 8 caracteres). Para cambiarla: borra ese archivo y vuelve a ejecutar el instalador. Sin contraseña, la página no existe. `GET /estadisticas.json`: los mismos datos.
+- Datos en `contador.json`, en el volumen `juegos-datos`.

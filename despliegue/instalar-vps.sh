@@ -9,6 +9,7 @@
 #     Antes de recargar Nginx comprueba la configuración (nginx -t); si falla, restaura la copia y no recarga.
 #  4. Saca el certificado HTTPS con certbot, igual que los de las demás webs (se renueva con el cron que ya hay).
 #  5. Comprueba https://juegos.itcanarias.com/salud.
+# La primera vez pide la contraseña de la página de estadísticas (https://juegos.itcanarias.com/estadisticas).
 # Se puede volver a ejecutar: actualiza el contenedor y deja la configuración igual.
 set -euo pipefail
 
@@ -49,6 +50,21 @@ if ! awk -v c="$CARGA" -v n="$NUCLEOS" 'BEGIN { exit !(c < n * 1.5) }'; then
   else para "El VPS va muy cargado ahora mismo (carga $CARGA con $NUCLEOS núcleos). Prueba más tarde o, si siempre está así, ejecuta: FORZAR=1 bash despliegue/instalar-vps.sh"; fi
 fi
 ok "Comprobaciones previas (hay capacidad de sobra)"
+
+# --- Contraseña de la página de estadísticas (https://juegos.itcanarias.com/estadisticas) ---
+# Se guarda solo en el VPS, en despliegue/.env (no se sube al repositorio). Para cambiarla: borra ese archivo y vuelve a ejecutar.
+if [ ! -s despliegue/.env ] || ! grep -q '^ESTADISTICAS_CLAVE=.\{8,\}' despliegue/.env; then
+  if [ -t 0 ]; then
+    while :; do
+      read -rsp "Elige la contraseña de las estadísticas (8 caracteres o más): " C1; echo
+      read -rsp "Repítela: " C2; echo
+      [ "$C1" = "$C2" ] && [ ${#C1} -ge 8 ] && break
+      echo "No coinciden o es demasiado corta. Otra vez."
+    done
+    umask 077; printf 'ESTADISTICAS_CLAVE=%s\n' "$C1" > despliegue/.env; chmod 600 despliegue/.env
+    ok "Contraseña de las estadísticas guardada en despliegue/.env"
+  else info "Sin contraseña de estadísticas (ejecútalo desde una terminal para elegirla); la página /estadisticas queda desactivada."; fi
+fi
 
 # --- 2. Contenedor ---
 info "Construyendo y arrancando juegos-servidor (tarda un poco la primera vez)…"
