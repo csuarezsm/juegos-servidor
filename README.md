@@ -1,6 +1,6 @@
 # Servidor de juegos en línea · IT Canarias
 
-Un solo servidor para jugar en línea a todas las apps de juegos de IT Canarias: hoy **Chinchón**, **Ajedrez** y **Pumba**, y las que vengan.
+Un solo servidor para jugar en línea a todas las apps de juegos de IT Canarias: hoy **Chinchón**, **Ajedrez**, **Pumba**, **Damas** y **Parchís**, y las que vengan.
 Dirección: `wss://juegos.itcanarias.com/ws` · Comprobación: `https://juegos.itcanarias.com/salud`
 
 © 2026 IT Canarias. Todos los derechos reservados.
@@ -12,8 +12,8 @@ Guía para conectar cada app: documento «Servidor de juegos en línea — guía
 - **Salas con código** de 4 caracteres (sin 0/O ni 1/I) para compartir por WhatsApp. Sin cuentas: cada app genera una **ficha** (token) y la guarda; con ella vuelve a su silla.
 - **Sala de espera** con anfitrión. En los juegos de cartas puede añadir a la máquina en las sillas libres y empieza cuando quiere. Ajedrez empieza solo al entrar el segundo jugador.
 - **El servidor manda**: reparte, guarda las cartas, lleva el reloj y comprueba cada jugada con el mismo motor que la app (`motores/<juego>/`). A cada jugador solo le envía lo que puede ver.
-- **Ausencias**: en los juegos de cartas, si alguien tarda más de 30 s sin conexión en su turno, la máquina juega por él hasta que vuelva. En ajedrez y damas se le espera (corre su reloj); salir de la sala en juego es rendirse.
-- **Revancha** (ajedrez y damas): cuando la piden los dos, partida nueva en la misma sala con los colores cambiados.
+- **Ausencias**: en los juegos de cartas y en el parchís, si alguien tarda más de 30 s sin conexión en su turno, la máquina juega por él hasta que vuelva. En ajedrez y damas se le espera (corre su reloj); salir de la sala en juego es rendirse.
+- **Revancha** (ajedrez, damas y parchís): cuando la piden todos, partida nueva en la misma sala con los colores cambiados.
 - **Partidas guardadas** en el volumen `juegos-datos`: sobreviven a reinicios y actualizaciones; los móviles se reconectan solos.
 - **Límites**: mensajes de 4 KB · 40 mensajes cada 10 s por conexión · 10 códigos fallidos por minuto · 500 salas a la vez.
 - **Limpieza**: las salas se borran 1 h después de terminar o tras 12 h sin nadie conectado.
@@ -27,6 +27,7 @@ Guía para conectar cada app: documento «Servidor de juegos en línea — guía
 | Ajedrez | `ajedrez` | 2 | `src/juegos/ajedrez.js` | `motores/ajedrez/ajedrez.js` |
 | Pumba | `pumba` | 2–6 (+ máquina) | `src/juegos/pumba.js` | `motores/pumba/marcador.js`, `juego.js` |
 | Damas (españolas) | `damas` | 2 | `src/juegos/damas.js` | `motores/damas/damas.js` |
+| Parchís | `parchis` | 2–4 (+ máquina) | `src/juegos/parchis.js` | `motores/parchis/parchis.js` |
 
 Para añadir un juego: un módulo en `src/juegos/` con `id`, `min`, `max`, `opciones`, `iniciar`, `turnoDe`, `jugada`, `pasoAuto`, `esperaListos`, `siguienteMano`, `vista`, `terminada` (y, si tiene reloj, `reloj` y `alVencer`; si no admite máquina, `sinMaquina`; si la máquina debe esperar antes de jugar, `pausaBot`), sus archivos de reglas en `motores/<juego>/`, y registrarlo en `JUEGOS` de `src/salas.js`. **Si cambian las reglas en una app, se vuelven a copiar aquí.**
 
@@ -47,6 +48,7 @@ El servidor responde con `{t:'hola', version, juegos}`, `{t:'sala', sala}` (la s
 Acciones por juego:
 - **Chinchón**: `robar` (`de: 'mazo'|'descarte'`), `tirar` (`carta`, `cerrar`), `listo`, `reenganche`.
 - **Pumba**: `echar` (`carta`, `palo` si es sota, `pumba: true` si dice «¡Pumba!» al echar la penúltima), `robar` (una carta, o el castigo de los doses), `reclamar` (fuera de turno: a quien olvidó decir «¡Pumba!», hasta que el siguiente eche o robe), `listo`, `reenganche`. Opciones al crear: `limite` (50–500), `reenganches` (0–3), `figuras` (`cara` o `diez`), `sotaLibre`, `cierreCastigo`, `nivel`. Si alguien olvida el «¡Pumba!», la máquina espera 2,5 s antes de jugar para dejar reclamar.
+- **Parchís**: `tirar` (el dado lo tira el servidor, con números aleatorios criptográficos) y `mover` (`ficha`: 0–3). Opciones al crear: `nivel` (`facil`, `normal`, `dificil`) para las sillas de la máquina. Con dos jugadores, colores enfrentados; en cada revancha cambia quién empieza. La vista lleva el estado completo (no hay información oculta) y, a quien le toca mover, sus jugadas posibles.
 - **Ajedrez**: `mover` (`uci`, p. ej. `e7e8q`), `tablas` (ofrecer o aceptar), `rechazar`, `rendirse`, `revancha`. Opciones al crear: `color` (`w`, `b` o `r`) y `reloj` (`{base, inc}` en ms).
 
 ## Instalar o actualizar en el VPS de IT Canarias (212.227.40.8)
@@ -74,7 +76,7 @@ En otro servidor: `docker compose up -d --build` (escucha en `127.0.0.1:8090`) y
 ```bash
 npm install && npm test
 ```
-Chinchón: dos jugadores y la máquina de principio a fin, reconexión, ausencias, límites. Pumba: dos jugadores y la máquina hasta el final, «¡Pumba!» olvidado y reclamado fuera de turno, desconexión y vuelta, 6 jugadores. Ajedrez: turnos, jugadas ilegales, reloj con incremento, caída de bandera, desconexión y vuelta, mate, tablas, revancha, abandono, guardado en disco. En GitHub, además, se construye la imagen Docker y se comprueba que arranca.
+Chinchón: dos jugadores y la máquina de principio a fin, reconexión, ausencias, límites. Parchís: dos personas y la máquina hasta el final, dado justo, turnos, desconexión y vuelta, revancha, 4 jugadores. Pumba: dos jugadores y la máquina hasta el final, «¡Pumba!» olvidado y reclamado fuera de turno, desconexión y vuelta, 6 jugadores. Ajedrez: turnos, jugadas ilegales, reloj con incremento, caída de bandera, desconexión y vuelta, mate, tablas, revancha, abandono, guardado en disco. En GitHub, además, se construye la imagen Docker y se comprueba que arranca.
 
 ## Catálogo de juegos (`docs/`)
 

@@ -12,9 +12,9 @@ const crypto = require('crypto');
 
 const DATOS = process.env.DATA_DIR || path.join(__dirname, '..', 'datos');
 const ARCHIVO = path.join(DATOS, 'contador.json');
-const JUEGOS = ['ajedrez', 'damas', 'chinchon', 'pumba'];
+const JUEGOS = ['ajedrez', 'damas', 'chinchon', 'pumba', 'parchis'];
 const PLATAFORMAS = ['android', 'play', 'ios', 'web'];
-const NOMBRES = { ajedrez: 'Ajedrez', damas: 'Damas', chinchon: 'Chinchón', pumba: 'Pumba' };
+const NOMBRES = { ajedrez: 'Ajedrez', damas: 'Damas', chinchon: 'Chinchón', pumba: 'Pumba', parchis: 'Parchís' };
 const PLAT_TXT = { android: 'Android (GitHub)', play: 'Google Play', ios: 'iPhone', web: 'Web' };
 
 let D = { instalaciones: {}, actualizaciones: {}, dias: {}, versiones: {}, partidas: {} };
@@ -67,7 +67,7 @@ function autorizado(req) {
 }
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tot = o => Object.values(o || {}).reduce((a, n) => a + n, 0);
-const COLORES = { ajedrez: '#6cc4e8', damas: '#e2574c', chinchon: '#62c98a', pumba: '#f2b84b' };
+const COLORES = { ajedrez: '#6cc4e8', damas: '#e2574c', chinchon: '#62c98a', pumba: '#f2b84b', parchis: '#4f8fe6' };
 function pagina(salas) {
   const dias = []; for (let i = 29; i >= 0; i--) dias.push(new Date(Date.now() - i * 864e5).toISOString().slice(0, 10));
   const porDia = dias.map(d => JUEGOS.map(j => tot((D.dias[d] || {})[j])));

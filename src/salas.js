@@ -13,6 +13,7 @@ const JUEGOS = {
   ajedrez: require('./juegos/ajedrez'),
   pumba: require('./juegos/pumba'),
   damas: require('./juegos/damas'),
+  parchis: require('./juegos/parchis'),
   // ← cada juego nuevo, un módulo con la misma interfaz
 };
 
@@ -253,4 +254,4 @@ function limpiar() {
 function guardarYa() { clearTimeout(guardarTimer); guardar(); }
 const estadisticas = () => ({ salas: salas.size, jugando: [...salas.values()].filter(s => s.estado === 'jugando').length, conexiones: [...conexiones.values()].reduce((n, x) => n + x.size, 0) });
 
-module.exports = { JUEGOS, tokenValido, limpiaNombre, crear, unirse, anadirBot, quitar, empezar, jugada, salir, alConectar, alDesconectar, cargar, limpiar, guardarYa, estadisticas, enviar, _salas: salas };
+module.exports = { JUEGOS, tokenValido, limpiaNombre, crear, unirse, anadirBot, quitar, empezar, jugada, salir, alConectar, alDesconectar, cargar, limpiar, guardarYa, estadisticas, enviar, _salas: salas, _programar: programar, _difundir: difundir };
