@@ -114,7 +114,13 @@ function pasoAuto(g) {
 function esperaListos(g, humanosConectados) {
   const h = mano(g);
   if (!h || h.phase !== 'over' || terminada(g)) return false;
-  return !humanosConectados.every(pid => h.listos && h.listos[pid]);
+  return !esperados(g, humanosConectados).every(pid => h.listos && h.listos[pid]);
+}
+// A quién se espera al terminar la mano: a los que siguen jugando y a los recién eliminados que pueden reengancharse.
+// Al que estaba ya eliminado (o no puede reengancharse) no se le espera.
+function esperados(g, humanos) {
+  const h = mano(g), R = E.compute(g);
+  return humanos.filter(pid => h.order.includes(pid) && (!R.st[pid].out || E.canRebuy(g, R, pid)));
 }
 function siguienteMano(g) {
   if (terminada(g)) return false;
@@ -147,7 +153,7 @@ function vista(g, yo) {
       cartas: h && h.hands[p.id] && h.order.includes(p.id) ? h.hands[p.id].length : 0
     })),
     historial: R.rows.filter(r => r.type === 'hand').map(r => ({ n: r.n, cierra: r.e.closer, tipo: r.e.kind, puntos: r.applied })),
-    resultado: null, listos: over ? Object.keys(h.listos || {}) : [],
+    resultado: null, listos: over ? Object.keys(h.listos || {}) : [], esperan: over ? esperados(g, g.players.map(p => p.id).filter(id => !g.play.bots.includes(id))) : [],
     puedeReenganchar: false, puntosReenganche: 0,
     fin: R.ended ? { ganador: R.ended.winner, por: R.ended.by } : null,
     partida: null
