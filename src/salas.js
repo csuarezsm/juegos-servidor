@@ -14,6 +14,7 @@ const JUEGOS = {
   pumba: require('./juegos/pumba'),
   damas: require('./juegos/damas'),
   parchis: require('./juegos/parchis'),
+  poker: require('./juegos/poker'),
   // ← cada juego nuevo, un módulo con la misma interfaz
 };
 
@@ -96,6 +97,10 @@ function programar(s) {
     if (!conectado(a.token)) {
       const falta = Math.max(0, (a.desconectadoEn || Date.now()) + AUSENTE_MS - Date.now());
       s.timer = setTimeout(seguro(s, () => { if (!conectado(a.token) && J.turnoDe(g) === turno) { J.pasoAuto(g); difundir(s); } else programar(s); }), falta + 50);
+    } else if (J.limiteTurno) {
+      // reloj de turno opcional (póker): quien está conectado pero no juega, pasa o se retira al agotarse el tiempo
+      const ms = J.limiteTurno(g);
+      if (ms != null) s.timer = setTimeout(seguro(s, () => { if (J.turnoDe(g) === turno) { J.alAgotarse(g); difundir(s); } else programar(s); }), ms + 30);
     }
     return;
   }

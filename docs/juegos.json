@@ -51,6 +51,16 @@
       "descarga": "https://csuarezsm.github.io/Parchis/",
       "web": "https://csuarezsm.github.io/Parchis/app/",
       "icono": "https://csuarezsm.github.io/Parchis/icon.png"
+    },
+    {
+      "id": "poker",
+      "nombre": "Póker",
+      "emoji": "♠️",
+      "descripcion": "Texas Hold'em: torneo con fichas ficticias contra la máquina o en línea, con modo aprendizaje.",
+      "android": "com.itcanarias.poker",
+      "descarga": "https://csuarezsm.github.io/Poker/",
+      "web": "https://csuarezsm.github.io/Poker/app/",
+      "icono": "https://csuarezsm.github.io/Poker/icon.png"
     }
   ]
 }
