@@ -1,3 +1,4 @@
 node_modules/
 despliegue/.env
 datos/
+node_modules
