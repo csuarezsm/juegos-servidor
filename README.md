@@ -30,6 +30,7 @@ Guía para conectar cada app: documento «Servidor de juegos en línea — guía
 | Parchís | `parchis` | 2–4 (+ máquina) | `src/juegos/parchis.js` | `motores/parchis/parchis.js` |
 | Póker | `poker` | 2–9 (+ máquina) | `src/juegos/poker.js` | `motores/poker/poker.js` |
 | UNO | `uno` | 2–10 (+ máquina) | `src/juegos/uno.js` | `motores/uno/uno.js` |
+| Invasores espaciales | `invasores` | 2–6 (reto de puntos, sin máquina) | `src/juegos/invasores.js` | `motores/invasores/invasores.js` |
 
 Para añadir un juego: un módulo en `src/juegos/` con `id`, `min`, `max`, `opciones`, `iniciar`, `turnoDe`, `jugada`, `pasoAuto`, `esperaListos`, `siguienteMano`, `vista`, `terminada` (y, si tiene reloj, `reloj` y `alVencer`; si no admite máquina, `sinMaquina`; si la máquina debe esperar antes de jugar, `pausaBot`), sus archivos de reglas en `motores/<juego>/`, y registrarlo en `JUEGOS` de `src/salas.js`. **Si cambian las reglas en una app, se vuelven a copiar aquí.**
 

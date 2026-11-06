@@ -71,6 +71,16 @@
       "descarga": "https://csuarezsm.github.io/Uno/",
       "web": "https://csuarezsm.github.io/Uno/app/",
       "icono": "https://csuarezsm.github.io/Uno/icon.png"
+    },
+    {
+      "id": "invasores",
+      "nombre": "Invasores espaciales",
+      "emoji": "👾",
+      "descripcion": "Arcade retro: defiende la Tierra de los invasores o compite en línea con tus amigos por la mejor puntuación.",
+      "android": "com.itcanarias.invasores",
+      "descarga": "https://csuarezsm.github.io/Invasores/",
+      "web": "https://csuarezsm.github.io/Invasores/app/",
+      "icono": "https://csuarezsm.github.io/Invasores/icon.png"
     }
   ]
 }
