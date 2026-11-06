@@ -4,12 +4,12 @@
   "private": true,
   "author": "IT Canarias",
   "license": "UNLICENSED",
-  "description": "Servidor de juegos en línea común para las apps de IT Canarias (Chinchón, Ajedrez, Pumba, Damas, Parchís…)",
+  "description": "Servidor de juegos en línea común para las apps de IT Canarias (Chinchón, Ajedrez, Pumba, Damas, Parchís, Póker, UNO…)",
   "type": "commonjs",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "test": "node test/chinchon.test.mjs && node test/ajedrez.test.mjs && node test/pumba.test.mjs && node test/damas.test.mjs && node test/parchis.test.mjs && node test/poker.test.mjs && node test/publicas.test.mjs && node test/contador.test.mjs"
+    "test": "node test/chinchon.test.mjs && node test/ajedrez.test.mjs && node test/pumba.test.mjs && node test/damas.test.mjs && node test/parchis.test.mjs && node test/poker.test.mjs && node test/uno.test.mjs && node test/publicas.test.mjs && node test/contador.test.mjs"
   },
   "engines": {
     "node": ">=22"

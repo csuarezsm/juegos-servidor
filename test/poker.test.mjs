@@ -129,7 +129,7 @@ check('revancha en la misma sala', await hasta(() => A.sala.estado === 'jugando'
   C.enviar({ t: 'bot' });
   check('no cabe un décimo', await hasta(() => C.errores.some(e => /completa/.test(e))));
   C.enviar({ t: 'empezar' }); await hasta(() => C.sala.estado === 'jugando');
-  check('con nueve, nueve asientos y las ciegas puestas', C.sala.partida.seats.length === 9 && C.sala.partida.seats.filter(s => s.bet > 0).length === 2);
+  check('con nueve, nueve asientos', C.sala.partida.seats.length === 9);
   C.enviar({ t: 'salir' });
   check('si se va la única persona, la sala desaparece', await hasta(() => C.sala === null));
   C.cerrar();

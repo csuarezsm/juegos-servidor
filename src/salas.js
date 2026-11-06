@@ -15,6 +15,7 @@ const JUEGOS = {
   damas: require('./juegos/damas'),
   parchis: require('./juegos/parchis'),
   poker: require('./juegos/poker'),
+  uno: require('./juegos/uno'),
   // ← cada juego nuevo, un módulo con la misma interfaz
 };
 

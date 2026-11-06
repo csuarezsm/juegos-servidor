@@ -61,6 +61,16 @@
       "descarga": "https://csuarezsm.github.io/Poker/",
       "web": "https://csuarezsm.github.io/Poker/app/",
       "icono": "https://csuarezsm.github.io/Poker/icon.png"
+    },
+    {
+      "id": "uno",
+      "nombre": "UNO",
+      "emoji": "🃏",
+      "descripcion": "El clásico de cartas de colores: contra la máquina o en línea con amigos, con modo aprendizaje.",
+      "android": "com.itcanarias.uno",
+      "descarga": "https://csuarezsm.github.io/Uno/",
+      "web": "https://csuarezsm.github.io/Uno/app/",
+      "icono": "https://csuarezsm.github.io/Uno/icon.png"
     }
   ]
 }
