@@ -9,6 +9,7 @@ const http = require('http');
 const { WebSocketServer } = require('ws');
 const S = require('./salas');
 const C = require('./contador');
+const RETO = require('./reto');
 
 const PUERTO = +process.env.PORT || 8090;
 const HOST = process.env.HOST || '0.0.0.0';
@@ -19,9 +20,10 @@ function crearServidor() {
   const server = http.createServer((req, res) => {
     if (req.method === 'GET' && (req.url === '/salud' || req.url === '/')) {
       res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
-      res.end(JSON.stringify({ ok: true, servicio: 'juegos-servidor', version: VERSION, juegos: Object.keys(S.JUEGOS), ...S.estadisticas() }));
+      res.end(JSON.stringify({ ok: true, servicio: 'juegos-servidor', version: VERSION, juegos: Object.keys(S.JUEGOS), reto: !!RETO.info(), ...S.estadisticas() }));
       return;
     }
+    if (RETO.http(req, res)) return;
     if (C.http(req, res, S.estadisticas())) return;
     res.writeHead(404, { 'content-type': 'text/plain' }); res.end('No encontrado');
   });
@@ -87,7 +89,7 @@ if (require.main === module) {
   S.cargar();
   const { server, wss } = crearServidor();
   server.listen(PUERTO, HOST, () => console.log(`Servidor de juegos v${VERSION} en ${HOST}:${PUERTO}`));
-  const parar = () => { console.log('Parando…'); S.guardarYa(); for (const ws of wss.clients) ws.close(1012, 'Reinicio'); server.close(() => process.exit(0)); setTimeout(() => process.exit(0), 3000); };
+  const parar = () => { console.log('Parando…'); S.guardarYa(); RETO.guardarYa(); for (const ws of wss.clients) ws.close(1012, 'Reinicio'); server.close(() => process.exit(0)); setTimeout(() => process.exit(0), 3000); };
   process.on('SIGTERM', parar); process.on('SIGINT', parar);
 }
 

@@ -37,4 +37,4 @@ const ajedrez = require(path.join(MOTORES, 'ajedrez', 'ajedrez.js'));
 // Damas: igual, un solo archivo de reglas sin dependencias
 const damas = require(path.join(MOTORES, 'damas', 'damas.js'));
 
-module.exports = { chinchon, ajedrez, pumba, damas };
+module.exports = { chinchon, ajedrez, pumba, damas, cargar };

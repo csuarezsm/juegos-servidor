@@ -32,6 +32,8 @@ Guía para conectar cada app: documento «Servidor de juegos en línea — guía
 | UNO | `uno` | 2–10 (+ máquina) | `src/juegos/uno.js` | `motores/uno/uno.js` |
 | Invasores espaciales | `invasores` | 2–6 (reto de puntos, sin máquina) | `src/juegos/invasores.js` | `motores/invasores/invasores.js` |
 
+Martín: Los Caminos del Volcán no usa salas: su **desafío diario** va por HTTP (`GET /reto/hoy`, `POST /reto/enviar`, `POST /reto/ranking`, `src/reto.js`). El servidor repite las pulsaciones con `motores/martin/martin.js` (el mismo archivo que la app) y solo acepta partidas que llegan a la meta; guarda día, nombre, tiempo y agua (`reto-martin.json`, 35 días).
+
 Para añadir un juego: un módulo en `src/juegos/` con `id`, `min`, `max`, `opciones`, `iniciar`, `turnoDe`, `jugada`, `pasoAuto`, `esperaListos`, `siguienteMano`, `vista`, `terminada` (y, si tiene reloj, `reloj` y `alVencer`; si no admite máquina, `sinMaquina`; si la máquina debe esperar antes de jugar, `pausaBot`), sus archivos de reglas en `motores/<juego>/`, y registrarlo en `JUEGOS` de `src/salas.js`. **Si cambian las reglas en una app, se vuelven a copiar aquí.**
 
 ## Protocolo (JSON por WebSocket en `/ws`)
