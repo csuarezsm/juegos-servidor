@@ -31,7 +31,8 @@ const DANO_PIEDRA = 12, DANO_VAPOR = 8, DANO_OLA = 8;            // peligros viv
 const DERRUMBE = 60;                                              // 1 s desde que se pisa una repisa frágil hasta que cae
 const PELIGROS = ['piedra', 'geiser', 'viento', 'ola', 'lava'];
 const OBJETOS = ['aljibe', 'tuno', 'higo', 'malvasia'];
-const AGUA_ALJIBE = 20;                                           // un aljibe repone 20 de agua (sin pasar de la inicial)
+const AGUA_ALJIBE = 20;
+const SAL_ACC = 0.4, SAL_FRENO = 0.1;                             // salinas (2.3): sobre la sal se arranca despacio y se resbala al frenar                                           // un aljibe repone 20 de agua (sin pasar de la inicial)
 const MODS = { normal: { dano: 1, agua: 100 }, fragil: { dano: 1.5, agua: 100 }, poca: { dano: 1, agua: 70 } };
 
 /* ---------- Validación y carga del nivel (dossier §11) ---------- */
@@ -85,7 +86,7 @@ function validar(L) {
     if ((h.kind === 'viento') && !(num(h.x0) && num(h.x1) && h.x1 > h.x0 && num(h.activo) && num(h.fuerza) && h.activo < h.periodo)) err('viento ' + h.id);
   }
   const o = Object.assign({}, L);
-  o.solids = L.solids.map(s => ({ id: s.id, kind: s.kind, x0: s.x0, x1: s.x1, top: s.top, bot: s.bottom == null ? -1e9 : s.bottom, route: s.route || '', fragil: !!s.fragil }));
+  o.solids = L.solids.map(s => ({ id: s.id, kind: s.kind, x0: s.x0, x1: s.x1, top: s.top, bot: s.bottom == null ? -1e9 : s.bottom, route: s.route || '', fragil: !!s.fragil, sal: !!s.sal }));
   o.peligros = (L.hazards || []).filter(h => h.kind !== 'lava');
   o.lava = (L.hazards || []).find(h => h.kind === 'lava') || null;
   for (const it of L.items || []) { uno(it.id, 'items'); if (!OBJETOS.includes(it.kind) || !num(it.x) || !num(it.y)) err('objeto ' + it.id); }
@@ -115,7 +116,7 @@ function nuevo(L, opts) {
     agua, danos: 0, caidas: 0, golpes: 0,
     cp: 0, saltos: 0, rx: L.spawn.x, ry: L.spawn.y, rt: 0,
     causa: '', estrellas: 0, mod: opts.mod || 'normal', dm: m.dano,
-    ruta: '', der: {}, obj: {}, ag0: agua, lava: null, ev: [], conEv: !!opts.eventos
+    ruta: '', der: {}, obj: {}, ag0: agua, lava: null, sal: false, ev: [], conEv: !!opts.eventos
   };
 }
 const emite = (s, e) => { if (s.conEv) s.ev.push(e); };
@@ -176,13 +177,13 @@ function paso(L, s, m) {
     const h = P[i]; if (h.kind !== 'viento' || s.x < h.x0 || s.x > h.x1) continue;
     const e = peligro(h, s.t); if (e.activo) vv += h.fuerza * e.q;
   }
-  const k = s.suelo ? 1 : AIRE;
+  const k = s.suelo ? 1 : AIRE, ks = s.suelo && s.sal;
   if (dir) {
     s.cara = dir;
-    const a = ((s.vx * dir < 0) ? FRENO : ACC) * k * DT, obj = dir * VMAX + vv;
+    const a = ((s.vx * dir < 0) ? FRENO * (ks ? SAL_FRENO * 1.5 : 1) : ACC * (ks ? SAL_ACC : 1)) * k * DT, obj = dir * VMAX + vv;
     if (s.vx < obj) s.vx = Math.min(obj, s.vx + a); else if (s.vx > obj) s.vx = Math.max(obj, s.vx - a);
   } else {
-    const a = FRENO * k * DT;
+    const a = FRENO * k * (ks ? SAL_FRENO : 1) * DT;
     if (s.vx > vv) s.vx = Math.max(vv, s.vx - a); else if (s.vx < vv) s.vx = Math.min(vv, s.vx + a);
   }
   if (s.buf > 0 && s.coy > 0) {
@@ -216,15 +217,15 @@ function paso(L, s, m) {
   s.y += s.vy * DT;
   let aterrizo = false;
   if (s.vy <= 0) {
-    let mejor = -1e18, idm = '', rutaDe = '', fr = false;
+    let mejor = -1e18, idm = '', rutaDe = '', fr = false, sl = false;
     for (let i = 0; i < n; i++) {
       const c = S[i]; if (c.fragil && caido(s, c)) continue;
       if (!(s.x + HW > c.x0 + EPS && s.x - HW < c.x1 - EPS)) continue;
-      if (oldY >= c.top - EPS && s.y <= c.top + EPS && c.top > mejor) { mejor = c.top; idm = c.id; rutaDe = c.route; fr = c.fragil; }
+      if (oldY >= c.top - EPS && s.y <= c.top + EPS && c.top > mejor) { mejor = c.top; idm = c.id; rutaDe = c.route; fr = c.fragil; sl = c.sal; }
     }
     if (mejor > -1e17 && fr && s.der[idm] == null) { s.der[idm] = DERRUMBE; emite(s, { t: 'cruje', id: idm }); }
     if (mejor > -1e17) {
-      s.y = mejor; s.vy = 0; aterrizo = true;
+      s.y = mejor; s.vy = 0; aterrizo = true; s.sal = sl;
       if (!s.ruta && rutaDe) { s.ruta = rutaDe; emite(s, { t: 'ruta', id: rutaDe }); }
       const v = -vyAntes;
       if (v >= V_FUERTE) dano(s, DANO_FUERTE, 'fuerte', idm);
@@ -319,7 +320,7 @@ const resultado = s => ({ fase: s.fase, pasos: s.t, ms: Math.round(s.t * 1000 / 
 function clonar(s) { const c = Object.assign({}, s); c.der = Object.assign({}, s.der); c.obj = Object.assign({}, s.obj); c.ev = []; c.conEv = false; return c; }
 
 const Mar = { DT, VMAX, ACC, FRENO, AIRE, SALTO, G, G_SOSTENIDO, SOSTENER, COYOTE, BUFER, W, H, HW, DANO_MEDIO, DANO_FUERTE, DANO_ROCA, DANO_CAIDA, V_MEDIO, V_FUERTE, V_ROCA,
-  INVULN, REAPARECE, MAX_PASOS, MODS, DANO_PIEDRA, DANO_VAPOR, DANO_OLA, DERRUMBE, peligro, AGUA_ALJIBE, retoDelDia, validar, cargar, nuevo, empezar, pausar, reanudar, paso, repetir, grabadora, resultado, estrellas, clonar, fnv };
+  INVULN, REAPARECE, MAX_PASOS, MODS, DANO_PIEDRA, DANO_VAPOR, DANO_OLA, DERRUMBE, peligro, AGUA_ALJIBE, SAL_ACC, SAL_FRENO, retoDelDia, validar, cargar, nuevo, empezar, pausar, reanudar, paso, repetir, grabadora, resultado, estrellas, clonar, fnv };
 if (typeof module !== 'undefined' && module.exports) module.exports = Mar;
 root.Martin = Mar;
 })(typeof self !== 'undefined' ? self : globalThis);
