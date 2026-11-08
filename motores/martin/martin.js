@@ -27,6 +27,9 @@ const INVULN = 21;                                                // 0,35 s
 const REAPARECE = 48;                                             // 0,8 s de animación de regreso
 const MAX_PASOS = 60 * 900;                                       // 15 minutos: tope de una partida
 const EPS = 1e-6;
+const DANO_PIEDRA = 12, DANO_VAPOR = 8, DANO_OLA = 8;            // peligros vivos (2.1)
+const DERRUMBE = 60;                                              // 1 s desde que se pisa una repisa frágil hasta que cae
+const PELIGROS = ['piedra', 'geiser', 'viento', 'ola'];
 const MODS = { normal: { dano: 1, agua: 100 }, fragil: { dano: 1.5, agua: 100 }, poca: { dano: 1, agua: 70 } };
 
 /* ---------- Validación y carga del nivel (dossier §11) ---------- */
@@ -69,8 +72,18 @@ function validar(L) {
   for (const o of L.obstacles || []) if (o.kind === 'gap') {
     for (const s of L.solids) if (s.kind !== 'wall' && s.top > w.kill_y + 1 && s.x0 < o.x1 - EPS && s.x1 > o.x0 + EPS && (s.bottom == null)) err('el hueco ' + o.id + ' tiene suelo (' + s.id + ')');
   }
+  for (const h of L.hazards || []) {
+    uno(h.id, 'hazards');
+    if (!PELIGROS.includes(h.kind)) err('peligro desconocido ' + h.id);
+    if (!(num(h.periodo) && h.periodo >= 30) || !num(h.desfase)) err('ritmo del peligro ' + h.id);
+    if (h.kind === 'piedra' && !(num(h.x0) && num(h.x1) && h.x1 > h.x0 && num(h.y) && num(h.vel) && h.vel > 0)) err('piedra ' + h.id);
+    if ((h.kind === 'geiser') && !(num(h.x) && num(h.y) && num(h.aviso) && num(h.activo) && num(h.fuerza) && h.aviso + h.activo < h.periodo)) err('géiser ' + h.id);
+    if ((h.kind === 'ola') && !(num(h.x0) && num(h.x1) && h.x1 > h.x0 && num(h.y) && num(h.alto) && num(h.aviso) && num(h.activo) && h.aviso + h.activo < h.periodo)) err('ola ' + h.id);
+    if ((h.kind === 'viento') && !(num(h.x0) && num(h.x1) && h.x1 > h.x0 && num(h.activo) && num(h.fuerza) && h.activo < h.periodo)) err('viento ' + h.id);
+  }
   const o = Object.assign({}, L);
-  o.solids = L.solids.map(s => ({ id: s.id, kind: s.kind, x0: s.x0, x1: s.x1, top: s.top, bot: s.bottom == null ? -1e9 : s.bottom, route: s.route || '' }));
+  o.solids = L.solids.map(s => ({ id: s.id, kind: s.kind, x0: s.x0, x1: s.x1, top: s.top, bot: s.bottom == null ? -1e9 : s.bottom, route: s.route || '', fragil: !!s.fragil }));
+  o.peligros = (L.hazards || []).slice();
   const extra = L.checkpoints_extra || [];
   for (const c of extra) { if (typeof c.id !== 'string' || !num(c.x) || !num(c.y)) err('checkpoint extra'); uno(c.id, 'checkpoints_extra'); if (!apoyo(c.x, c.y)) err('el punto de control ' + c.id + ' no está sobre suelo'); }
   o.cps = [L.checkpoint].concat(extra).sort((a, b) => a.x - b.x);
@@ -96,7 +109,7 @@ function nuevo(L, opts) {
     agua, danos: 0, caidas: 0, golpes: 0,
     cp: 0, saltos: 0, rx: L.spawn.x, ry: L.spawn.y, rt: 0,
     causa: '', estrellas: 0, mod: opts.mod || 'normal', dm: m.dano,
-    ruta: '', ev: [], conEv: !!opts.eventos
+    ruta: '', der: {}, ev: [], conEv: !!opts.eventos
   };
 }
 const emite = (s, e) => { if (s.conEv) s.ev.push(e); };
@@ -121,11 +134,19 @@ function estrellas(L, s) {
   }
   return n;
 }
+/* Estado de un peligro en el paso t (solo depende del reloj: igual en la app, el robot y el servidor) */
+function peligro(h, t) {
+  const c = ((t + h.desfase) % h.periodo + h.periodo) % h.periodo;
+  if (h.kind === 'piedra') { const x = h.x1 - c / 60 * h.vel; return { x, activo: x >= h.x0, c }; }
+  if (h.kind === 'viento') return { activo: c < h.activo, aviso: c >= h.periodo - 45, c, q: c < h.activo ? Math.sin(Math.PI * c / h.activo) : 0 };
+  return { aviso: c < h.aviso, activo: c >= h.aviso && c < h.aviso + h.activo, c };
+}
+const caido = (s, c) => s.der[c.id] === 0;
 function paso(L, s, m) {
   if (s.fase === 'reaparece') {
     s.t++; s.rt--;
     if (s.rt <= 0) {
-      s.fase = 'jugando'; s.x = s.rx; s.y = s.ry; s.vx = 0; s.vy = 0; s.suelo = true; s.coy = COYOTE; s.buf = 0; s.sos = 0; s.frio = INVULN; s.pj = (m & 4) ? 1 : 0;
+      s.fase = 'jugando'; s.x = s.rx; s.y = s.ry; s.vx = 0; s.vy = 0; s.suelo = true; s.der = {}; s.coy = COYOTE; s.buf = 0; s.sos = 0; s.frio = INVULN; s.pj = (m & 4) ? 1 : 0;
       emite(s, { t: 'reaparecido' });
     }
     return s;
@@ -134,21 +155,28 @@ function paso(L, s, m) {
   s.t++;
   if (s.t > MAX_PASOS) { s.fase = 'fallo'; s.causa = 'tiempo'; emite(s, { t: 'fallo', causa: s.causa }); return s; }
   if (s.frio > 0) s.frio--;
+  for (const id in s.der) if (s.der[id] > 0 && --s.der[id] === 0) emite(s, { t: 'derrumbe', id });
   // 1) entrada
   const dir = ((m & 2) ? 1 : 0) - ((m & 1) ? 1 : 0);
   const salto = (m & 4) !== 0;
   if (salto && !s.pj) s.buf = BUFER; else if (s.buf > 0) s.buf--;
   s.pj = salto ? 1 : 0;
   if (s.suelo) s.coy = COYOTE; else if (s.coy > 0) s.coy--;
-  // 2) movimiento horizontal y vertical
+  // 2) movimiento horizontal y vertical. El viento desplaza la velocidad objetivo: en contra se avanza y se salta menos
+  const P = L.peligros || [];
+  let vv = 0;
+  for (let i = 0; i < P.length; i++) {
+    const h = P[i]; if (h.kind !== 'viento' || s.x < h.x0 || s.x > h.x1) continue;
+    const e = peligro(h, s.t); if (e.activo) vv += h.fuerza * e.q;
+  }
   const k = s.suelo ? 1 : AIRE;
   if (dir) {
     s.cara = dir;
-    const a = ((s.vx * dir < 0) ? FRENO : ACC) * k * DT, obj = dir * VMAX;
+    const a = ((s.vx * dir < 0) ? FRENO : ACC) * k * DT, obj = dir * VMAX + vv;
     if (s.vx < obj) s.vx = Math.min(obj, s.vx + a); else if (s.vx > obj) s.vx = Math.max(obj, s.vx - a);
   } else {
     const a = FRENO * k * DT;
-    if (s.vx > 0) s.vx = Math.max(0, s.vx - a); else if (s.vx < 0) s.vx = Math.min(0, s.vx + a);
+    if (s.vx > vv) s.vx = Math.max(vv, s.vx - a); else if (s.vx < vv) s.vx = Math.min(vv, s.vx + a);
   }
   if (s.buf > 0 && s.coy > 0) {
     s.saltos++; s.vy = SALTO; s.buf = 0; s.coy = 0; s.sos = SOSTENER; s.suelo = false;
@@ -163,7 +191,7 @@ function paso(L, s, m) {
   const oldX = s.x, oldY = s.y;
   s.x += s.vx * DT;
   for (let i = 0; i < n; i++) {
-    const c = S[i]; if (c.kind === 'oneway') continue;
+    const c = S[i]; if (c.kind === 'oneway' || (c.fragil && caido(s, c))) continue;
     if (!(s.y < c.top - EPS && s.y + H > c.bot + EPS)) continue;
     if (!(s.x + HW > c.x0 && s.x - HW < c.x1)) continue;
     if (oldX + HW <= c.x0 + EPS && s.vx > 0) {
@@ -181,12 +209,13 @@ function paso(L, s, m) {
   s.y += s.vy * DT;
   let aterrizo = false;
   if (s.vy <= 0) {
-    let mejor = -1e18, idm = '', rutaDe = '';
+    let mejor = -1e18, idm = '', rutaDe = '', fr = false;
     for (let i = 0; i < n; i++) {
-      const c = S[i];
+      const c = S[i]; if (c.fragil && caido(s, c)) continue;
       if (!(s.x + HW > c.x0 + EPS && s.x - HW < c.x1 - EPS)) continue;
-      if (oldY >= c.top - EPS && s.y <= c.top + EPS && c.top > mejor) { mejor = c.top; idm = c.id; rutaDe = c.route; }
+      if (oldY >= c.top - EPS && s.y <= c.top + EPS && c.top > mejor) { mejor = c.top; idm = c.id; rutaDe = c.route; fr = c.fragil; }
     }
+    if (mejor > -1e17 && fr && s.der[idm] == null) { s.der[idm] = DERRUMBE; emite(s, { t: 'cruje', id: idm }); }
     if (mejor > -1e17) {
       s.y = mejor; s.vy = 0; aterrizo = true;
       if (!s.ruta && rutaDe) { s.ruta = rutaDe; emite(s, { t: 'ruta', id: rutaDe }); }
@@ -197,12 +226,24 @@ function paso(L, s, m) {
     }
   } else {
     for (let i = 0; i < n; i++) {
-      const c = S[i]; if (c.kind === 'oneway' || c.bot < -1e8) continue;
+      const c = S[i]; if (c.kind === 'oneway' || c.bot < -1e8 || (c.fragil && caido(s, c))) continue;
       if (!(s.x + HW > c.x0 + EPS && s.x - HW < c.x1 - EPS)) continue;
       if (oldY + H <= c.bot + EPS && s.y + H > c.bot) { s.y = c.bot - H; s.vy = 0; break; }
     }
   }
   s.suelo = aterrizo;
+  // peligros vivos: piedras que ruedan, géiseres de vapor y olas
+  for (let i = 0; i < P.length; i++) {
+    const h = P[i]; if (h.kind === 'viento') continue;
+    const e = peligro(h, s.t); if (!e.activo) continue;
+    if (h.kind === 'piedra') {
+      if (Math.abs(s.x - e.x) < HW + 0.42 && s.y < h.y + 0.84 && s.y + H > h.y && dano(s, DANO_PIEDRA, 'piedra', h.id)) { s.vx = -5; s.vy = 6; s.suelo = false; }
+    } else if (h.kind === 'geiser') {
+      if (Math.abs(s.x - h.x) < 0.75 && s.y > h.y - 0.1 && s.y < h.y + 3.2 && dano(s, DANO_VAPOR, 'vapor', h.id)) { s.vy = Math.max(s.vy, h.fuerza); s.suelo = false; emite(s, { t: 'geiser', id: h.id }); }
+    } else if (h.kind === 'ola') {
+      if (s.x > h.x0 && s.x < h.x1 && s.y < h.y + h.alto && dano(s, DANO_OLA, 'ola', h.id)) { s.vx = -6; s.vy = 5.5; s.suelo = false; }
+    }
+  }
   // 4) integridad
   if (s.agua <= 0) { s.fase = 'fallo'; s.causa = 'agua'; emite(s, { t: 'fallo', causa: s.causa }); return s; }
   // 5) punto de control, límite de caída y meta
@@ -249,10 +290,10 @@ function retoDelDia(dia, ids) {
 const resultado = s => ({ fase: s.fase, pasos: s.t, ms: Math.round(s.t * 1000 / 60), agua: s.agua, danos: s.danos, caidas: s.caidas, golpes: s.golpes, estrellas: s.estrellas, causa: s.causa });
 
 /* ---------- Ayudas para la app y el robot de pruebas ---------- */
-function clonar(s) { const c = Object.assign({}, s); c.ev = []; c.conEv = false; return c; }
+function clonar(s) { const c = Object.assign({}, s); c.der = Object.assign({}, s.der); c.ev = []; c.conEv = false; return c; }
 
 const Mar = { DT, VMAX, ACC, FRENO, AIRE, SALTO, G, G_SOSTENIDO, SOSTENER, COYOTE, BUFER, W, H, HW, DANO_MEDIO, DANO_FUERTE, DANO_ROCA, DANO_CAIDA, V_MEDIO, V_FUERTE, V_ROCA,
-  INVULN, REAPARECE, MAX_PASOS, MODS, retoDelDia, validar, cargar, nuevo, empezar, pausar, reanudar, paso, repetir, grabadora, resultado, estrellas, clonar, fnv };
+  INVULN, REAPARECE, MAX_PASOS, MODS, DANO_PIEDRA, DANO_VAPOR, DANO_OLA, DERRUMBE, peligro, retoDelDia, validar, cargar, nuevo, empezar, pausar, reanudar, paso, repetir, grabadora, resultado, estrellas, clonar, fnv };
 if (typeof module !== 'undefined' && module.exports) module.exports = Mar;
 root.Martin = Mar;
 })(typeof self !== 'undefined' ? self : globalThis);
