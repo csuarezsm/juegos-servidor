@@ -29,7 +29,9 @@ const MAX_PASOS = 60 * 900;                                       // 15 minutos:
 const EPS = 1e-6;
 const DANO_PIEDRA = 12, DANO_VAPOR = 8, DANO_OLA = 8;            // peligros vivos (2.1)
 const DERRUMBE = 60;                                              // 1 s desde que se pisa una repisa frágil hasta que cae
-const PELIGROS = ['piedra', 'geiser', 'viento', 'ola'];
+const PELIGROS = ['piedra', 'geiser', 'viento', 'ola', 'lava'];
+const OBJETOS = ['aljibe', 'tuno', 'higo', 'malvasia'];
+const AGUA_ALJIBE = 20;                                           // un aljibe repone 20 de agua (sin pasar de la inicial)
 const MODS = { normal: { dano: 1, agua: 100 }, fragil: { dano: 1.5, agua: 100 }, poca: { dano: 1, agua: 70 } };
 
 /* ---------- Validación y carga del nivel (dossier §11) ---------- */
@@ -75,15 +77,19 @@ function validar(L) {
   for (const h of L.hazards || []) {
     uno(h.id, 'hazards');
     if (!PELIGROS.includes(h.kind)) err('peligro desconocido ' + h.id);
-    if (!(num(h.periodo) && h.periodo >= 30) || !num(h.desfase)) err('ritmo del peligro ' + h.id);
+    if (h.kind !== 'lava' && (!(num(h.periodo) && h.periodo >= 30) || !num(h.desfase))) err('ritmo del peligro ' + h.id);
     if (h.kind === 'piedra' && !(num(h.x0) && num(h.x1) && h.x1 > h.x0 && num(h.y) && num(h.vel) && h.vel > 0)) err('piedra ' + h.id);
     if ((h.kind === 'geiser') && !(num(h.x) && num(h.y) && num(h.aviso) && num(h.activo) && num(h.fuerza) && h.aviso + h.activo < h.periodo)) err('géiser ' + h.id);
     if ((h.kind === 'ola') && !(num(h.x0) && num(h.x1) && h.x1 > h.x0 && num(h.y) && num(h.alto) && num(h.aviso) && num(h.activo) && h.aviso + h.activo < h.periodo)) err('ola ' + h.id);
+    if ((h.kind === 'lava') && !(num(h.desde) && num(h.vel) && h.vel > 0 && num(h.ventaja) && num(h.hasta))) err('lava ' + h.id);
     if ((h.kind === 'viento') && !(num(h.x0) && num(h.x1) && h.x1 > h.x0 && num(h.activo) && num(h.fuerza) && h.activo < h.periodo)) err('viento ' + h.id);
   }
   const o = Object.assign({}, L);
   o.solids = L.solids.map(s => ({ id: s.id, kind: s.kind, x0: s.x0, x1: s.x1, top: s.top, bot: s.bottom == null ? -1e9 : s.bottom, route: s.route || '', fragil: !!s.fragil }));
-  o.peligros = (L.hazards || []).slice();
+  o.peligros = (L.hazards || []).filter(h => h.kind !== 'lava');
+  o.lava = (L.hazards || []).find(h => h.kind === 'lava') || null;
+  for (const it of L.items || []) { uno(it.id, 'items'); if (!OBJETOS.includes(it.kind) || !num(it.x) || !num(it.y)) err('objeto ' + it.id); }
+  o.objetos = (L.items || []).slice();
   const extra = L.checkpoints_extra || [];
   for (const c of extra) { if (typeof c.id !== 'string' || !num(c.x) || !num(c.y)) err('checkpoint extra'); uno(c.id, 'checkpoints_extra'); if (!apoyo(c.x, c.y)) err('el punto de control ' + c.id + ' no está sobre suelo'); }
   o.cps = [L.checkpoint].concat(extra).sort((a, b) => a.x - b.x);
@@ -109,7 +115,7 @@ function nuevo(L, opts) {
     agua, danos: 0, caidas: 0, golpes: 0,
     cp: 0, saltos: 0, rx: L.spawn.x, ry: L.spawn.y, rt: 0,
     causa: '', estrellas: 0, mod: opts.mod || 'normal', dm: m.dano,
-    ruta: '', der: {}, ev: [], conEv: !!opts.eventos
+    ruta: '', der: {}, obj: {}, ag0: agua, lava: null, ev: [], conEv: !!opts.eventos
   };
 }
 const emite = (s, e) => { if (s.conEv) s.ev.push(e); };
@@ -146,7 +152,8 @@ function paso(L, s, m) {
   if (s.fase === 'reaparece') {
     s.t++; s.rt--;
     if (s.rt <= 0) {
-      s.fase = 'jugando'; s.x = s.rx; s.y = s.ry; s.vx = 0; s.vy = 0; s.suelo = true; s.der = {}; s.coy = COYOTE; s.buf = 0; s.sos = 0; s.frio = INVULN; s.pj = (m & 4) ? 1 : 0;
+      s.fase = 'jugando'; s.x = s.rx; s.y = s.ry; s.vx = 0; s.vy = 0; s.suelo = true; s.der = {};
+      if (s.lava != null) s.lava = Math.min(s.lava, s.rx - L.lava.ventaja); s.coy = COYOTE; s.buf = 0; s.sos = 0; s.frio = INVULN; s.pj = (m & 4) ? 1 : 0;
       emite(s, { t: 'reaparecido' });
     }
     return s;
@@ -244,6 +251,25 @@ function paso(L, s, m) {
       if (s.x > h.x0 && s.x < h.x1 && s.y < h.y + h.alto && dano(s, DANO_OLA, 'ola', h.id)) { s.vx = -6; s.vy = 5.5; s.suelo = false; }
     }
   }
+  // objetos: aljibes que reponen agua y frutos escondidos (se recogen una vez por partida)
+  const O = L.objetos || [];
+  for (let i = 0; i < O.length; i++) {
+    const it = O[i]; if (s.obj[it.id]) continue;
+    if (Math.abs(s.x - it.x) < HW + 0.45 && s.y < it.y + 0.45 && s.y + H > it.y - 0.45) {
+      s.obj[it.id] = it.kind;
+      if (it.kind === 'aljibe') { const antes = s.agua; s.agua = Math.min(s.ag0, s.agua + AGUA_ALJIBE); emite(s, { t: 'recoge', id: it.id, kind: it.kind, mas: s.agua - antes }); }
+      else emite(s, { t: 'recoge', id: it.id, kind: it.kind });
+    }
+  }
+  // lava: cuando se cruza el punto de salida, avanza sin parar; si alcanza a Martín, la misión falla
+  const LV = L.lava;
+  if (LV) {
+    if (s.lava == null && s.x >= LV.desde) { s.lava = s.x - LV.ventaja; emite(s, { t: 'lava' }); }
+    if (s.lava != null && s.x < LV.hasta) {
+      s.lava += LV.vel * DT;
+      if (s.x - HW < s.lava) { s.fase = 'fallo'; s.causa = 'lava'; emite(s, { t: 'fallo', causa: s.causa }); return s; }
+    }
+  }
   // 4) integridad
   if (s.agua <= 0) { s.fase = 'fallo'; s.causa = 'agua'; emite(s, { t: 'fallo', causa: s.causa }); return s; }
   // 5) punto de control, límite de caída y meta
@@ -287,13 +313,13 @@ function retoDelDia(dia, ids) {
   const mods = ['normal', 'fragil', 'poca'];
   return { nivel: lista.length ? lista[h % lista.length] : '', mod: mods[Math.floor(h / 7) % mods.length] };
 }
-const resultado = s => ({ fase: s.fase, pasos: s.t, ms: Math.round(s.t * 1000 / 60), agua: s.agua, danos: s.danos, caidas: s.caidas, golpes: s.golpes, estrellas: s.estrellas, causa: s.causa });
+const resultado = s => ({ fase: s.fase, pasos: s.t, ms: Math.round(s.t * 1000 / 60), agua: s.agua, danos: s.danos, caidas: s.caidas, golpes: s.golpes, estrellas: s.estrellas, causa: s.causa, objetos: Object.keys(s.obj || {}).filter(k => s.obj[k] !== 'aljibe') });
 
 /* ---------- Ayudas para la app y el robot de pruebas ---------- */
-function clonar(s) { const c = Object.assign({}, s); c.der = Object.assign({}, s.der); c.ev = []; c.conEv = false; return c; }
+function clonar(s) { const c = Object.assign({}, s); c.der = Object.assign({}, s.der); c.obj = Object.assign({}, s.obj); c.ev = []; c.conEv = false; return c; }
 
 const Mar = { DT, VMAX, ACC, FRENO, AIRE, SALTO, G, G_SOSTENIDO, SOSTENER, COYOTE, BUFER, W, H, HW, DANO_MEDIO, DANO_FUERTE, DANO_ROCA, DANO_CAIDA, V_MEDIO, V_FUERTE, V_ROCA,
-  INVULN, REAPARECE, MAX_PASOS, MODS, DANO_PIEDRA, DANO_VAPOR, DANO_OLA, DERRUMBE, peligro, retoDelDia, validar, cargar, nuevo, empezar, pausar, reanudar, paso, repetir, grabadora, resultado, estrellas, clonar, fnv };
+  INVULN, REAPARECE, MAX_PASOS, MODS, DANO_PIEDRA, DANO_VAPOR, DANO_OLA, DERRUMBE, peligro, AGUA_ALJIBE, retoDelDia, validar, cargar, nuevo, empezar, pausar, reanudar, paso, repetir, grabadora, resultado, estrellas, clonar, fnv };
 if (typeof module !== 'undefined' && module.exports) module.exports = Mar;
 root.Martin = Mar;
 })(typeof self !== 'undefined' ? self : globalThis);

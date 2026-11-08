@@ -69,7 +69,7 @@ R._reset();
 forzar('uga_l03_dry_ravine:poca');
 j = await (await post('/reto/enviar', envio('uga_l03_dry_ravine:poca', { token: TOK2, nombre: 'Ana' }))).json();
 { const MM = createRequire(import.meta.url)('../motores/martin/martin.js'), NN = createRequire(import.meta.url)('../motores/martin/niveles.js'); const LL = MM.cargar(NN[2]).nivel, fin = MM.repetir(LL, PART['uga_l03_dry_ravine:poca'], { mod: 'poca' });
-  check('modo «poca agua» válido (parte con 70)', j.ok && j.agua === fin.agua && fin.danos + fin.agua === 70, JSON.stringify(j)); }
+  check('modo «poca agua» válido (parte con 70)', j.ok && j.agua === fin.agua && fin.ag0 === 70 && fin.agua <= 70, JSON.stringify(j)); }
 
 // ranking y mejora
 R._reset();
