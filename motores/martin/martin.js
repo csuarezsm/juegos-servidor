@@ -33,7 +33,7 @@ const PELIGROS = ['piedra', 'geiser', 'viento', 'ola', 'lava'];
 const OBJETOS = ['aljibe', 'tuno', 'higo', 'malvasia'];
 const AGUA_ALJIBE = 20;
 const SAL_ACC = 0.4, SAL_FRENO = 0.1;                             // salinas (2.3): sobre la sal se arranca despacio y se resbala al frenar                                           // un aljibe repone 20 de agua (sin pasar de la inicial)
-const MODS = { normal: { dano: 1, agua: 100 }, fragil: { dano: 1.5, agua: 100 }, poca: { dano: 1, agua: 70 } };
+const MODS = { normal: { dano: 1, agua: 100 }, fragil: { dano: 1.5, agua: 100 }, poca: { dano: 1, agua: 70 }, peque: { dano: 0.5, agua: 100, lava: 0.7 } };   // peque: para los más pequeños (nunca en el reto diario)
 
 /* ---------- Validación y carga del nivel (dossier §11) ---------- */
 function fnv(s) { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return ('00000000' + h.toString(16)).slice(-8); }
@@ -115,7 +115,7 @@ function nuevo(L, opts) {
     coy: COYOTE, buf: 0, sos: 0, pj: 0, frio: 0,
     agua, danos: 0, caidas: 0, golpes: 0,
     cp: 0, saltos: 0, rx: L.spawn.x, ry: L.spawn.y, rt: 0,
-    causa: '', estrellas: 0, mod: opts.mod || 'normal', dm: m.dano,
+    causa: '', estrellas: 0, mod: opts.mod || 'normal', dm: m.dano, lf: m.lava || 1,
     ruta: '', der: {}, obj: {}, ag0: agua, lava: null, sal: false, ev: [], conEv: !!opts.eventos
   };
 }
@@ -267,7 +267,7 @@ function paso(L, s, m) {
   if (LV) {
     if (s.lava == null && s.x >= LV.desde) { s.lava = s.x - LV.ventaja; emite(s, { t: 'lava' }); }
     if (s.lava != null && s.x < LV.hasta) {
-      s.lava += LV.vel * DT;
+      s.lava += LV.vel * (s.lf || 1) * DT;
       if (s.x - HW < s.lava) { s.fase = 'fallo'; s.causa = 'lava'; emite(s, { t: 'fallo', causa: s.causa }); return s; }
     }
   }
